@@ -9,7 +9,6 @@ type ComponentPropType = {
 export const Breadcrumb = ({ title, desc, button }: ComponentPropType) => {
   return (
     <div className=" bg-gradient-to-r from-emerald-600 to-teal-500 text-white px-8 py-8 flex items-center justify-between shadow-lg overflow-hidden">
-      {/* Decorative background circles */}
       <div className="absolute w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
       <div className="absolute w-32 h-32 bg-black/10 rounded-full blur-xl"></div>
       
