@@ -54,7 +54,7 @@ export const Sidebar = ({ sidebar }: { sidebar: string }) => {
                     to={child.path}
                     className={`group relative flex items-center gap-3 pl-7 pr-5 py-3 transition-all duration-300 z-20
                       ${isCollapsed ? "justify-center w-12 h-12 mx-auto rounded-full" : isMobile ? "rounded-none" : "rounded-l-full"}
-                      ${childIsActive ? "bg-white text-[#0050E0] font-semibold" : "text-white hover:bg-white/10"}
+                      ${childIsActive ? "bg-white text-emerald-600 font-semibold" : "text-white hover:bg-white/15"}
                     `}
                   >
                     <span className="text-lg flex-shrink-0">{child.icon}</span>
@@ -76,7 +76,7 @@ export const Sidebar = ({ sidebar }: { sidebar: string }) => {
               onClick={() => toggleDropdown(item.label)}
               className={`group relative flex items-center gap-3 pl-7 pr-5 py-3 transition-all duration-300 z-20 w-full
                 ${isCollapsed ? "justify-center w-12 h-12 mx-auto rounded-full" : isMobile ? "rounded-none" : "rounded-l-full"}
-                ${isActive ? "bg-white text-[#0050E0] font-semibold" : "text-white hover:bg-white/10"}
+                ${isActive ? "bg-white text-emerald-600 font-semibold" : "text-white hover:bg-white/15"}
               `}
             >
               <span className="text-lg flex-shrink-0">{item.icon}</span>
@@ -98,8 +98,9 @@ export const Sidebar = ({ sidebar }: { sidebar: string }) => {
                   <div key={childIndex} className="relative">
                     <Link
                       to={child.path}
-                      className={`group relative flex items-center gap-3 pl-7 pr-5 py-3 transition-all duration-300 z-20 ${isMobile ? "rounded-none" : "rounded-l-full"}
-                        ${childIsActive ? "bg-white text-[#0050E0] font-semibold" : "text-white hover:bg-white/10"}
+                      className={`group relative flex items-center gap-3 pl-7 pr-5 py-3 transition-all duration-300 z-20
+                        ${isMobile ? "rounded-none" : "rounded-l-full"}
+                        ${childIsActive ? "bg-white text-emerald-600 font-semibold" : "text-white hover:bg-white/15"}
                       `}
                     >
                       <span className="text-lg flex-shrink-0">{child.icon}</span>
@@ -120,7 +121,7 @@ export const Sidebar = ({ sidebar }: { sidebar: string }) => {
           to={item.path}
           className={`group relative flex items-center gap-3 pl-7 pr-5 py-3 transition-all duration-300 z-20
             ${isCollapsed ? "justify-center w-12 h-12 mx-auto rounded-full" : isMobile ? "rounded-none" : "rounded-l-full"}
-            ${isActive ? "bg-white text-[#0050E0] font-semibold" : "text-white hover:bg-white/10"}
+            ${isActive ? "bg-white text-emerald-600 font-semibold" : "text-white hover:bg-white/15"}
           `}
         >
           <span className="text-lg flex-shrink-0">{item.icon}</span>
@@ -135,7 +136,7 @@ export const Sidebar = ({ sidebar }: { sidebar: string }) => {
       {isMobile && (
         <button
           onClick={toggleMobileMenu}
-          className="lg:hidden fixed top-4 left-4 z-50 bg-[#0050E0] text-white p-2 rounded-full shadow-lg"
+          className="lg:hidden fixed top-4 left-4 z-50 bg-emerald-600 text-white p-2 rounded-full shadow-lg"
         >
           {isMobileMenuOpen ? (
             <X size={24} />
@@ -146,17 +147,19 @@ export const Sidebar = ({ sidebar }: { sidebar: string }) => {
           )}
         </button>
       )}
+
       {isMobile && isMobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-[#00000075] z-30 lg:hidden"
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
+
       <aside
-        className={`h-screen fixed left-0 top-0 z-40 transition-all duration-300 
-                ${isCollapsed && !isMobile ? "w-20" : "w-64"}
-                ${isMobile ? (isMobileMenuOpen ? "translate-x-0" : "-translate-x-full") : "translate-x-0"}
-                bg-[#0050E0] text-white overflow-hidden`}
+        className={`h-screen fixed left-0 top-0 z-40 transition-all duration-300
+          ${isCollapsed && !isMobile ? "w-20" : "w-64"}
+          ${isMobile ? (isMobileMenuOpen ? "translate-x-0" : "-translate-x-full") : "translate-x-0"}
+          bg-gradient-to-b from-emerald-600 to-green-500 text-white overflow-hidden`}
       >
         <div className="flex flex-col items-center py-6">
           {!isCollapsed || isMobile ? (
@@ -165,13 +168,14 @@ export const Sidebar = ({ sidebar }: { sidebar: string }) => {
             <span className="text-lg font-bold">eP</span>
           )}
         </div>
-        <div className={`${isMobile ? "h-0" : "h-8"}`}></div>
+
+        <div className={`${isMobile ? "h-0" : "h-8"}`} />
+
         <nav
-          className={`space-y-0 relative overflow-y-auto pl-2 ${isMobile ? "h-[calc(100vh-120px)]" : "h-[calc(100vh-180px)]"}`}
-          style={{
-            scrollbarWidth: "none",
-            msOverflowStyle: "none",
-          }}
+          className={`space-y-0 relative overflow-y-auto pl-2 ${
+            isMobile ? "h-[calc(100vh-120px)]" : "h-[calc(100vh-180px)]"
+          }`}
+          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
         >
           <style jsx>{`
             nav::-webkit-scrollbar {

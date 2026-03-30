@@ -1,12 +1,63 @@
 import React, { useState } from 'react';
-import { Menu, X, Tent, Calendar, Users, ArrowRight, Instagram, Facebook, Twitter, Star, ChevronRight, ShoppingCart } from 'lucide-react';
+import { Menu, X, Tent, Calendar, Users, ArrowRight, Instagram, Facebook, Twitter, Star, ChevronRight, ShoppingCart, LogOut } from 'lucide-react';
 import { bundlingPackages, bestSellers, serviceBenefits, howItWorks, reviews } from '../dummy/landingPageData';
 import { useCartStore } from '@/core/store/useCartStore';
 import { Link } from 'react-router-dom';
+import { getToken } from '@/core/helpers/TokenHandle';
+import { useAuth } from '@/core/hooks/useAuth';
+import { useApiClient } from '@/core/helpers/ApiClient';
+import { useEffect } from 'react';
 
 export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const cartItemCount = useCartStore((state) => state.items.length);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const { logout } = useAuth();
+  const api = useApiClient();
+
+  const [bundlings, setBundlings] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    await logout();
+    setIsLoggingOut(false);
+  }
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [bundlingRes, productRes] = await Promise.all([
+          api.get('/bundlings'),
+          api.get('/products'),
+        ]);
+
+        const bundlingsData = (bundlingRes.data.bundlings || []).map((item: any) => ({
+          ...item,
+          image: item.image
+            ? `http://localhost:8000/storage/${item.image}`
+            : null,
+        }));
+
+        const productsData = (productRes.data.products || []).map((item: any) => ({
+          ...item,
+          image: item.image
+            ? `http://localhost:8000/storage/${item.image}`
+            : null,
+        }));
+
+        setBundlings(bundlingsData);
+        setProducts(productsData);
+      } catch (error) {
+        console.error('Error fetching landing data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   return (
     <div className="font-sans text-stone-800 bg-stone-50">
@@ -34,9 +85,18 @@ export default function LandingPage() {
                   )}
                 </Link>
 
-                <Link to="/catalogue" className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-full text-sm font-medium transition-colors">
-                  Rent Now
-                </Link>
+                {getToken() ? (
+                  <button
+                    onClick={handleLogout}
+                    disabled={isLoggingOut}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-full text-sm font-medium transition-colors">
+                    {isLoggingOut ? 'Logging out...' : 'Logout'}
+                  </button>
+                ) : (
+                  <Link to="/login" className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-full text-sm font-medium transition-colors">
+                    Login
+                  </Link>
+                )}
               </div>
             </div>
 
@@ -95,39 +155,6 @@ export default function LandingPage() {
             Don't let expensive gear hold you back. Rent top-quality camping equipment from us and start your adventure today. Clean, easy, and affordable.
           </p>
         </div>
-
-        {/* <div className="absolute bottom-[-3rem] left-0 right-0 z-20 px-4">
-          <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-xl p-4 md:p-6 grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-            <div>
-              <label className="block text-xs font-semibold text-stone-500 uppercase mb-1">Pick-up Date</label>
-              <div className="flex items-center gap-2 border-b border-stone-200 pb-2">
-                <Calendar className="w-4 h-4 text-emerald-600" />
-                <input type="date" className="w-full text-sm outline-none bg-transparent text-stone-600" />
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-stone-500 uppercase mb-1">Return Date</label>
-              <div className="flex items-center gap-2 border-b border-stone-200 pb-2">
-                <Calendar className="w-4 h-4 text-emerald-600" />
-                <input type="date" className="w-full text-sm outline-none bg-transparent text-stone-600" />
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-stone-500 uppercase mb-1">Group Size</label>
-              <div className="flex items-center gap-2 border-b border-stone-200 pb-2">
-                <Users className="w-4 h-4 text-emerald-600" />
-                <select className="w-full text-sm outline-none bg-transparent">
-                  <option>2 People</option>
-                  <option>4 People</option>
-                  <option>6+ People</option>
-                </select>
-              </div>
-            </div>
-            <button className="bg-emerald-800 hover:bg-emerald-900 text-white h-10 rounded-md font-medium transition-colors">
-              Find Gear
-            </button>
-          </div>
-        </div> */}
       </section>
 
       <section className="py-24 px-4 bg-stone-50 mt-12">
@@ -192,7 +219,7 @@ export default function LandingPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {bundlingPackages.map((pack) => (
+            {bundlings.slice(0, 3).map((pack) => (
               <div key={pack.id} className="group bg-white rounded-xl overflow-hidden cursor-pointer hover:shadow-xl transition-all duration-300 border border-stone-100 flex flex-col h-full">
                 <div className="h-56 overflow-hidden relative">
                   <img src={pack.image} alt={pack.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
@@ -207,10 +234,13 @@ export default function LandingPage() {
 
                   <div className="flex-1">
                     <ul className="space-y-2 mb-6">
-                      {pack.features.map((item, idx) => (
-                        <li key={idx} className="flex items-start gap-2 text-sm text-stone-600">
+                      {pack.materials?.map((material: any) => (
+                        <li
+                          key={material.id}
+                          className="flex items-start gap-2 text-sm text-stone-600"
+                        >
                           <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-2" />
-                          {item}
+                          {material.product?.name} × {material.quantity}
                         </li>
                       ))}
                     </ul>
@@ -225,7 +255,6 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
-
       <section id="bestseller" className="py-20 px-4 bg-white">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
@@ -234,7 +263,7 @@ export default function LandingPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {bestSellers.map((item) => (
+            {products.slice(0, 4).map((item) => (
               <div key={item.id} className="bg-stone-50 rounded-lg p-4 hover:shadow-lg transition-shadow border border-transparent hover:border-emerald-100">
                 <div className="aspect-square rounded-lg overflow-hidden mb-4 bg-white relative group flex items-center justify-center p-4">
                   <img src={item.image} alt={item.name} className="w-full h-full object-contain mix-blend-multiply group-hover:scale-110 transition-transform duration-300" />
@@ -242,6 +271,7 @@ export default function LandingPage() {
                 <div>
                   <div className="text-xs text-emerald-600 font-bold uppercase mb-1">{item.category}</div>
                   <h3 className="font-bold text-stone-900 text-lg leading-tight">{item.name}</h3>
+                  <p className="text-stone-500 text-xs mb-4 min-h-8 mt-4">{item.description}</p>
                   <div className="flex items-center justify-between mt-4">
                     <span className="text-stone-700 font-medium">{item.price}</span>
                     <button className="w-9 h-9 rounded-full bg-white border border-stone-200 text-emerald-700 flex items-center justify-center hover:bg-emerald-600 hover:border-emerald-600 hover:text-white transition-colors">

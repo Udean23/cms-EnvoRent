@@ -11,3 +11,6 @@ export { default as ProductCreate } from './Admin/Product/widgets/Create';
 export { default as ProductEdit } from './Admin/Product/widgets/Edit';
 export { default as TransactionHistory } from './Admin/TransactionHistory';
 export { default as LandingPage } from './Customer/Landing Page';
+export { default as Pemesanan } from './Admin/Pemesanan';
+export { default as User } from './Admin/User';
+export { default as ActivityLogs } from './Admin/Log Activity';

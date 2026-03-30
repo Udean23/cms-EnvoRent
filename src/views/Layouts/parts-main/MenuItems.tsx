@@ -1,3 +1,4 @@
+import { path } from "framer-motion/client";
 import {
     CalendarCheck,
     ChefHat,
@@ -48,6 +49,11 @@ export const menuItems = [
                 icon: <History size={16} />,
                 path: "/transaction-history",
             },
+            {
+                label: "Pemesanan",
+                icon: <FaBoxesPacking size={16} />,
+                path: "/pemesanan",
+            }
         ],
     },
     {
@@ -63,46 +69,41 @@ export const menuItems = [
                 icon: <Shirt size={16} />,
                 path: "/products",
             },
-            // {
-            //     label: "Paket Bundling",
-            //     icon: <Package size={16} />,
-            //     path: "/bundlings",
-            // },
+            {
+                label: "Paket Bundling",
+                icon: <Package size={16} />,
+                path: "/bundlings",
+            },
             // {
             //     label: "Diskon",
             //     icon: <DiamondPercent size={16} />,
             //     path: "/discounts",
             // },
+            // {
+            //     label: "Warna",
+            //     icon: <BiColor />,
+            //     path: "/colors",
+            // },
+            // {
+            //     label: "Ukuran",
+            //     icon: <FaBoxesPacking />,
+            //     path: "/sizes",
+            // },
+        ],
+    },
+    {
+        label: "Lainnya",
+        children: [
             {
-                label: "Warna",
-                icon: <BiColor />,
-                path: "/colors",
+                label: "Log Aktifitas",
+                icon: <CalendarCheck size={16} />,
+                path: "/activity-logs",
             },
             {
-                label: "Ukuran",
-                icon: <FaBoxesPacking />,
-                path: "/sizes",
+                label: "Karyawan",
+                icon: <SquareUser size={16} />,
+                path: "/users",
             },
         ],
     },
-    // {
-    //     label: "Lainnya",
-    //     children: [
-    //         {
-    //             label: "Shift",
-    //             icon: <CalendarCheck size={16} />,
-    //             path: "/shift",
-    //         },
-    //         {
-    //             label: "Sections",
-    //             icon: <FaUserTag />,
-    //             path: "/roles",
-    //         },
-    //         {
-    //             label: "Karyawan",
-    //             icon: <SquareUser size={16} />,
-    //             path: "/users",
-    //         },
-    //     ],
-    // },
 ];

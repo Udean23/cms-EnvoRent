@@ -1,48 +1,140 @@
-import React, { useState, useMemo } from 'react';
-import { Search, Filter, ShoppingCart, Star, Plus, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
-import { categories, products, bundles } from '../dummy/catalogueData';
-import { useCartStore } from '@/core/store/useCartStore';
-import { Link } from 'react-router-dom';
-import Swal from 'sweetalert2';
+import React, { useState, useMemo, useEffect } from 'react'
+import { Search, Filter, ShoppingCart, Plus, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react'
+import { useCartStore } from '@/core/store/useCartStore'
+import { Link } from 'react-router-dom'
+import Swal from 'sweetalert2'
+import { useApiClient } from '@/core/helpers/ApiClient'
 
 export default function CataloguePage() {
-    const [activeTab, setActiveTab] = useState<'products' | 'bundles'>('products');
-    const [searchQuery, setSearchQuery] = useState('');
-    const [selectedCategory, setSelectedCategory] = useState('all');
-    const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000000]);
-    const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 6;
+    const api = useApiClient()
 
-    const addToCart = useCartStore((state) => state.addToCart);
-    const cartItemCount = useCartStore((state) => state.items.length);
+    const [categories, setCategories] = useState<any[]>([])
+    const [products, setProducts] = useState<any[]>([])
+    const [bundles, setBundles] = useState<any[]>([])
+    const [loading, setLoading] = useState(true)
+
+    const [activeTab, setActiveTab] = useState<'products' | 'bundles'>('products')
+
+    const [productSearch, setProductSearch] = useState('')
+    const [bundleSearch, setBundleSearch] = useState('')
+
+    const [selectedCategory, setSelectedCategory] = useState('all')
+
+    const [productPriceRange, setProductPriceRange] = useState<[number, number]>([0, 2000000])
+    const [bundlePriceRange, setBundlePriceRange] = useState<[number, number]>([0, 2000000])
+
+    const [currentPage, setCurrentPage] = useState(1)
+    const itemsPerPage = 6
+
+    const addToCart = useCartStore((state) => state.addToCart)
+    const cartItemCount = useCartStore((state) => state.items.length)
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const [catRes, prodRes, bundleRes] = await Promise.all([
+                    api.get('/categories'),
+                    api.get('/products'),
+                    api.get('/bundlings')
+                ]);
+
+                const bundlingsData = (bundleRes.data.bundlings || []).map((item: any) => ({
+                    ...item,
+                    image: item.image
+                        ? `http://localhost:8000/storage/${item.image}`
+                        : null,
+                }));
+
+                const productsData = (prodRes.data.products || []).map((item: any) => ({
+                    ...item,
+                    image: item.image
+                        ? `http://localhost:8000/storage/${item.image}`
+                        : null,
+                }));
+
+                setCategories([
+                    { id: 'all', name: 'All Categories' },
+                    ...(catRes.data?.categories ?? [])
+                ]);
+
+                setProducts(productsData);
+                setBundles(bundlingsData);
+            } catch (error) {
+                setCategories([{ id: 'all', name: 'All Categories' }]);
+                setProducts([]);
+                setBundles([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
+    }, []);
 
     const filteredItems = useMemo(() => {
-        let items = activeTab === 'products' ? products : bundles;
+        if (activeTab === 'products') {
+            let items = products
 
-        if (searchQuery) {
-            items = items.filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()));
+            if (productSearch) {
+                items = items.filter(item =>
+                    item.name?.toLowerCase().includes(productSearch.toLowerCase())
+                )
+            }
+
+            if (selectedCategory !== 'all') {
+                items = items.filter(item =>
+                    String(item.category_id) === String(selectedCategory)
+                )
+            }
+
+            items = items.filter(item =>
+                Number(item.price ?? 0) >= productPriceRange[0] &&
+                Number(item.price ?? 0) <= productPriceRange[1]
+            )
+
+            return items
         }
 
-        if (activeTab === 'products' && selectedCategory !== 'all') {
-            // @ts-ignore
-            items = items.filter(item => item.category === selectedCategory);
+        if (activeTab === 'bundles') {
+            let items = bundles
+
+            if (bundleSearch) {
+                items = items.filter(item =>
+                    item.name?.toLowerCase().includes(bundleSearch.toLowerCase())
+                )
+            }
+
+            items = items.filter(item =>
+                Number(item.price ?? 0) >= bundlePriceRange[0] &&
+                Number(item.price ?? 0) <= bundlePriceRange[1]
+            )
+
+            return items
         }
 
-        items = items.filter(item => item.price >= priceRange[0] && item.price <= priceRange[1]);
+        return []
+    }, [
+        activeTab,
+        products,
+        bundles,
+        productSearch,
+        bundleSearch,
+        selectedCategory,
+        productPriceRange,
+        bundlePriceRange
+    ])
 
-        return items;
-    }, [activeTab, searchQuery, selectedCategory, priceRange]);
+    const totalPages = Math.ceil(filteredItems.length / itemsPerPage)
 
-    const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
     const currentItems = filteredItems.slice(
         (currentPage - 1) * itemsPerPage,
         currentPage * itemsPerPage
-    );
+    )
 
     const handleTabChange = (tab: 'products' | 'bundles') => {
-        setActiveTab(tab);
-        setCurrentPage(1);
-    };
+        setActiveTab(tab)
+        setCurrentPage(1)
+    }
 
     const handleAddToCart = (item: any) => {
         addToCart({
@@ -51,7 +143,8 @@ export default function CataloguePage() {
             price: item.price,
             image: item.image,
             type: activeTab === 'products' ? 'product' : 'bundle'
-        });
+        })
+
         Swal.fire({
             icon: 'success',
             title: 'Added to Cart',
@@ -60,8 +153,16 @@ export default function CataloguePage() {
             position: 'top-end',
             showConfirmButton: false,
             timer: 1500
-        });
-    };
+        })
+    }
+
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <p>Loading...</p>
+            </div>
+        )
+    }
 
     return (
         <div className="min-h-screen bg-stone-50 font-sans text-stone-800">
@@ -102,8 +203,15 @@ export default function CataloguePage() {
                                     type="text"
                                     placeholder="Search gear..."
                                     className="w-full pl-9 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                    value={searchQuery}
-                                    onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                                    value={activeTab === 'products' ? productSearch : bundleSearch}
+                                    onChange={(e) => {
+                                        if (activeTab === 'products') {
+                                            setProductSearch(e.target.value)
+                                        } else {
+                                            setBundleSearch(e.target.value)
+                                        }
+                                        setCurrentPage(1)
+                                    }}
                                 />
                             </div>
                         </div>
@@ -118,8 +226,11 @@ export default function CataloguePage() {
                                                 type="radio"
                                                 name="category"
                                                 className="text-emerald-600 focus:ring-emerald-500"
-                                                checked={selectedCategory === cat.id}
-                                                onChange={() => { setSelectedCategory(cat.id); setCurrentPage(1); }}
+                                                checked={String(selectedCategory) === String(cat.id)}
+                                                onChange={() => {
+                                                    setSelectedCategory(String(cat.id))
+                                                    setCurrentPage(1)
+                                                }}
                                             />
                                             <span className="text-sm text-stone-600">{cat.name}</span>
                                         </label>
@@ -134,15 +245,31 @@ export default function CataloguePage() {
                                 <input
                                     type="number"
                                     className="w-full px-2 py-1 border rounded bg-stone-50"
-                                    value={priceRange[0]}
-                                    onChange={(e) => { setPriceRange([Number(e.target.value), priceRange[1]]); setCurrentPage(1); }}
+                                    value={activeTab === 'products' ? productPriceRange[0] : bundlePriceRange[0]}
+                                    onChange={(e) => {
+                                        const value = Number(e.target.value)
+                                        if (activeTab === 'products') {
+                                            setProductPriceRange([value, productPriceRange[1]])
+                                        } else {
+                                            setBundlePriceRange([value, bundlePriceRange[1]])
+                                        }
+                                        setCurrentPage(1)
+                                    }}
                                 />
                                 <span>-</span>
                                 <input
                                     type="number"
                                     className="w-full px-2 py-1 border rounded bg-stone-50"
-                                    value={priceRange[1]}
-                                    onChange={(e) => { setPriceRange([priceRange[0], Number(e.target.value)]); setCurrentPage(1); }}
+                                    value={activeTab === 'products' ? productPriceRange[1] : bundlePriceRange[1]}
+                                    onChange={(e) => {
+                                        const value = Number(e.target.value)
+                                        if (activeTab === 'products') {
+                                            setProductPriceRange([productPriceRange[0], value])
+                                        } else {
+                                            setBundlePriceRange([bundlePriceRange[0], value])
+                                        }
+                                        setCurrentPage(1)
+                                    }}
                                 />
                             </div>
                         </div>
@@ -170,34 +297,28 @@ export default function CataloguePage() {
                             <div key={item.id} className="bg-white rounded-xl shadow-sm border border-stone-100 overflow-hidden hover:shadow-md transition-shadow group flex flex-col h-full">
                                 <div className="aspect-[4/3] bg-stone-100 relative overflow-hidden">
                                     <img src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                                    <div className="absolute top-3 right-3 bg-white/90 backdrop-blur px-2 py-1 rounded-md flex items-center gap-1 text-xs font-bold text-amber-500 shadow-sm">
-                                        <Star className="w-3 h-3 fill-current" /> {item.rating}
-                                    </div>
                                 </div>
                                 <div className="p-4 flex flex-col flex-1">
                                     <div className="text-xs text-stone-500 uppercase font-bold mb-1">
-                                        {/* @ts-ignore */}
-                                        {activeTab === 'products' ? item.category : 'Bundle'}
+                                        {activeTab === 'products' ? item.category?.name ?? '' : 'Bundle'}
                                     </div>
-                                    <h3 className="font-bold text-lg text-stone-900 mb-2 truncate" title={item.name}>{item.name}</h3>
-                                    {/* @ts-ignore */}
+                                    <h3 className="font-bold text-lg text-stone-900 mb-2 truncate">{item.name}</h3>
                                     <p className="text-stone-500 text-xs mb-4 line-clamp-2 min-h-[2.5em]">{item.description}</p>
 
                                     {activeTab === 'bundles' && (
                                         <div className="mb-4 flex flex-wrap gap-1 mt-auto">
-                                            {/* @ts-ignore */}
-                                            {item.features.slice(0, 3).map((f, i) => (
-                                                <span key={i} className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-1 rounded-full">{f}</span>
+                                            {(item.materials ?? []).slice(0, 3).map((f: any, i: number) => (
+                                                <span key={i} className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-1 rounded-full">
+                                                    {f.product?.name}
+                                                </span>
                                             ))}
-                                            {/* @ts-ignore */}
-                                            {item.features.length > 3 && <span className="text-[10px] text-stone-400 px-1 py-1">+{item.features.length - 3} more</span>}
                                         </div>
                                     )}
 
                                     <div className="flex items-center justify-between mt-auto pt-4">
                                         <div>
                                             <span className="text-xs text-stone-400">Start from</span>
-                                            <div className="text-emerald-700 font-bold">Rp {item.price.toLocaleString('id-ID')}</div>
+                                            <div className="text-emerald-700 font-bold">Rp {Number(item.price ?? 0).toLocaleString('id-ID')}</div>
                                         </div>
                                         <button
                                             onClick={() => handleAddToCart(item)}
@@ -210,12 +331,6 @@ export default function CataloguePage() {
                             </div>
                         ))}
                     </div>
-
-                    {filteredItems.length === 0 && (
-                        <div className="text-center py-20 text-stone-500">
-                            <p>No items found matching your filters.</p>
-                        </div>
-                    )}
 
                     {filteredItems.length > 0 && (
                         <div className="flex justify-center items-center gap-4 mt-8">
@@ -241,5 +356,5 @@ export default function CataloguePage() {
                 </div>
             </main>
         </div>
-    );
+    )
 }

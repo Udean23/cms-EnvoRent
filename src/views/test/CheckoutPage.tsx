@@ -13,7 +13,7 @@ const CheckoutPage: React.FC = () => {
       const response = await axios.post(
         "http://localhost:8000/api/payments/checkout",
         {
-          transaction_id: 7
+          transaction_id: 9
         },
         {
           headers: {
