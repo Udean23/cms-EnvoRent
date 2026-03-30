@@ -48,7 +48,7 @@ const AuthForm: React.FC = () => {
         setTimeout(() => {
           if (response.data.user.role === 'admin') {
             window.location.href = '/dashboard';
-          } else if (response.data.user.role === 'worker') {
+          } else if (response.data.user.role === 'superadmin') {
             window.location.href = '/dashboard';
           } else if (response.data.user.role === 'customer') {
             window.location.href = '/';

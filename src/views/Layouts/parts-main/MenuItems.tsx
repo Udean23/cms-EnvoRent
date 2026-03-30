@@ -34,26 +34,26 @@ export const menuItems = [
     },
     {
         group: "Transaksi",
-        label: "Penjualan",
+        label: "Peminjaman",
         icon: <TbShoppingCart />,
         path: "/outlets",
         isDropdown: true,
         children: [
-            {
-                label: "Kasir",
-                icon: <TbShoppingCart />,
-                path: "/kasir",
-            },
-            {
-                label: "Riwayat Transaksi",
-                icon: <History size={16} />,
-                path: "/transaction-history",
-            },
+            // {
+            //     label: "Kasir",
+            //     icon: <TbShoppingCart />,
+            //     path: "/kasir",
+            // },
             {
                 label: "Pemesanan",
                 icon: <FaBoxesPacking size={16} />,
                 path: "/pemesanan",
-            }
+            },
+            {
+                label: "Riwayat Peminjaman",
+                icon: <History size={16} />,
+                path: "/transaction-history",
+            },
         ],
     },
     {
