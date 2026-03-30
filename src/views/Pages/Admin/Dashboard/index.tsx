@@ -1,6 +1,7 @@
-import React from "react";
+import { useEffect, useState } from "react";
 import ApexCharts from "react-apexcharts";
-import { Heart, Wallet, Shirt, Users, ShoppingBag } from "lucide-react";
+import { useApiClient } from "@/core/helpers/ApiClient";
+import { Wallet, Shirt, Users, ShoppingBag, ArrowUpRight, ArrowDownRight, Clock, User as UserIcon } from "lucide-react";
 import { Breadcrumb } from "@/views/Components/breadcrumb";
 
 const formatRupiah = (value: number) =>
@@ -10,283 +11,244 @@ const formatRupiah = (value: number) =>
     maximumFractionDigits: 0,
   }).format(value);
 
-const weeklySalesData = {
-  series: [
-    {
-      name: "Penjualan",
-      data: [1200000, 2500000, 1800000, 3200000, 2800000, 4500000, 5200000],
-    },
-  ],
-  options: {
-    chart: {
-      type: "area",
-      height: 160,
-      toolbar: { show: false },
-      zoom: { enabled: false },
-    },
-    dataLabels: { enabled: false },
-    stroke: { curve: "smooth", width: 2 },
-    fill: {
-      type: "gradient",
-      gradient: {
-        shadeIntensity: 1,
-        opacityFrom: 0.4,
-        opacityTo: 0,
-        stops: [0, 90, 100],
-      },
-    },
-    xaxis: {
-      categories: ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"],
-      labels: { style: { colors: "#6B7280", fontSize: "12px" } },
-      axisBorder: { show: false },
-      axisTicks: { show: false },
-    },
-    yaxis: {
-      labels: {
-        style: { colors: "#6B7280", fontSize: "12px" },
-        formatter: (val: number) => `${val / 1000}k`,
-      },
-    },
-    grid: { show: false },
-    tooltip: {
-      enabled: true,
-      y: {
-        formatter: (val: number) => formatRupiah(val),
-      },
-    },
-    colors: ["#10B981"],
-  },
-};
-
-const yearlySalesData = {
-  series: [
-    {
-      name: "Penjualan",
-      data: [
-        1200000, 2500000, 1800000, 3200000, 2800000, 4500000, 5200000,
-        400000, 5000000, 3000000, 2000000, 7000000,
-      ],
-    },
-  ],
-  options: {
-    chart: {
-      type: "area",
-      height: 160,
-      toolbar: { show: false },
-      zoom: { enabled: false },
-    },
-    dataLabels: { enabled: false },
-    stroke: { curve: "smooth", width: 2 },
-    fill: {
-      type: "gradient",
-      gradient: {
-        shadeIntensity: 1,
-        opacityFrom: 0.4,
-        opacityTo: 0,
-        stops: [0, 90, 100],
-      },
-    },
-    xaxis: {
-      categories: [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-      ],
-      labels: { style: { colors: "#6B7280", fontSize: "12px" } },
-      axisBorder: { show: false },
-      axisTicks: { show: false },
-    },
-    yaxis: {
-      labels: {
-        style: { colors: "#6B7280", fontSize: "12px" },
-        formatter: (val: number) => `${val / 1000}k`,
-      },
-    },
-    grid: { show: false },
-    tooltip: {
-      enabled: true,
-      y: {
-        formatter: (val: number) => formatRupiah(val),
-      },
-    },
-    colors: ["#10B981"],
-  },
-};
-
-const CircularProgress = ({
-  percentage,
-  size = 70,
-  strokeWidth = 6,
-  color = "#10B981",
-}: any) => {
-  const radius = (size - strokeWidth) / 2;
-  const circumference = radius * 2 * Math.PI;
-  const strokeDasharray = circumference;
-  const strokeDashoffset =
-    circumference - (percentage / 100) * circumference;
-
-  let IconComponent = Wallet;
-  if (percentage < 30) IconComponent = Wallet;
-  else if (percentage < 50) IconComponent = Shirt;
-  else if (percentage < 75) IconComponent = Users;
-  else IconComponent = ShoppingBag;
-
+const StatusBadge = ({ status }: { status: string }) => {
+  const styles: any = {
+    completed: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    accepted: "bg-blue-100 text-blue-700 border-blue-200",
+    pending: "bg-amber-100 text-amber-700 border-amber-200",
+    cancelled: "bg-rose-100 text-rose-700 border-rose-200",
+  };
   return (
-    <div className="relative inline-flex items-center justify-center">
-      <svg width={size} height={size} className="-rotate-90 transform">
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke="#E5E7EB"
-          strokeWidth={strokeWidth}
-          fill="none"
-        />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke={color}
-          strokeWidth={strokeWidth}
-          fill="none"
-          strokeDasharray={strokeDasharray}
-          strokeDashoffset={strokeDashoffset}
-          strokeLinecap="round"
-          className="transition-all duration-300"
-        />
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <IconComponent className="text-emerald-600" size={20} />
-      </div>
-    </div>
+    <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${styles[status] || "bg-gray-100 text-gray-700"}`}>
+      {status.charAt(0).toUpperCase() + status.slice(1)}
+    </span>
   );
 };
 
-const CardStat = ({ label, value, percentage = 75 }: any) => (
-  <div className="bg-white rounded-2xl p-4 shadow-sm w-full flex items-center justify-center">
-    <div className="flex items-center justify-between w-full">
-      <div className="flex-1">
-        <div className="text-sm text-gray-500 mb-1">{label}</div>
-        <div className="text-xl font-semibold text-gray-900">{value}</div>
-      </div>
-      <div className="ml-3">
-        <CircularProgress percentage={percentage} />
-      </div>
-    </div>
+const GlassCard = ({ children, className = "" }: any) => (
+  <div className={`bg-white/70 backdrop-blur-xl border border-white/40 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-[2rem] p-6 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-500 ${className}`}>
+    {children}
   </div>
 );
 
-const FavouriteItem = ({ img, name }: any) => (
-  <div className="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col">
-    <img src={img} alt={name} className="w-full h-40 object-cover" />
-    <div className="p-3 text-center flex-1 flex flex-col justify-between">
+const StatCard = ({ label, value, growth, icon: Icon, colorClass }: any) => (
+  <GlassCard className="relative overflow-hidden group">
+    <div className={`absolute -right-4 -top-4 w-24 h-24 rounded-full opacity-10 blur-2xl transition-all duration-500 group-hover:scale-150 ${colorClass}`}></div>
+    <div className="flex items-start justify-between relative z-10">
       <div>
-        <div className="font-medium text-gray-800">{name}</div>
-        <div className="text-sm text-gray-500">(Ulasan 150) ⭐⭐⭐⭐⭐</div>
+        <p className="text-sm font-medium text-gray-500 mb-1">{label}</p>
+        <h3 className="text-2xl font-bold text-gray-900">{value}</h3>
+        {growth !== undefined && (
+          <div className={`flex items-center mt-2 text-xs font-semibold ${growth >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+            {growth >= 0 ? <ArrowUpRight size={14} className="mr-1" /> : <ArrowDownRight size={14} className="mr-1" />}
+            {Math.abs(growth)}% <span className="text-gray-400 font-normal ml-1">dari bulan lalu</span>
+          </div>
+        )}
       </div>
-      <button className="mt-2 text-xs text-emerald-600 bg-emerald-100 px-2 py-1 rounded-full flex items-center justify-center mx-auto gap-1">
-        <Heart size={14} fill="currentColor" className="text-emerald-600" />
-        <span>12k Suka</span>
-      </button>
+      <div className={`p-3 rounded-2xl ${colorClass} bg-opacity-10 text-current`}>
+        <Icon size={24} className={colorClass.replace("bg-", "text-")} />
+      </div>
     </div>
-  </div>
+  </GlassCard>
 );
 
 const Dashboard = () => {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const apiClient = useApiClient();
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await apiClient.get("/dashboard");
+        setData(response.data);
+      } catch (error) {
+        console.error("Failed to fetch dashboard data", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="p-4 md:p-6 space-y-6 bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500"></div>
+          <p className="text-sm text-gray-500 font-medium animate-pulse">Menyiapkan Dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const revenueChartOptions: any = {
+    chart: { type: "area", toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Outfit, sans-serif' },
+    dataLabels: { enabled: false },
+    stroke: { curve: "smooth", width: 4, colors: ["#10B981"] },
+    fill: { type: "gradient", gradient: { shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.05, stops: [20, 100, 100], colorStops: [{ offset: 0, color: '#10B981', opacity: 0.4 }, { offset: 100, color: '#10B981', opacity: 0 }] } },
+    xaxis: { categories: data?.weekly_labels || [], labels: { style: { colors: "#94a3b8", fontSize: "12px" } }, axisBorder: { show: false }, axisTicks: { show: false } },
+    yaxis: { labels: { style: { colors: "#94a3b8", fontSize: "12px" }, formatter: (val: number) => `${val / 1000}k` } },
+    grid: { borderColor: "#f1f5f9", strokeDashArray: 4, xaxis: { lines: { show: true } }, yaxis: { lines: { show: true } } },
+    tooltip: { theme: 'light', y: { formatter: (val: number) => formatRupiah(val) } },
+    colors: ["#10B981"],
+  };
+
+  const donutOptions: any = {
+    chart: { type: "donut", fontFamily: 'Outfit, sans-serif' },
+    labels: data?.category_sales?.labels || [],
+    colors: ["#10B981", "#3B82F6", "#F59E0B", "#EF4444", "#8B5CF6"],
+    legend: { position: "bottom", fontSize: "12px", markers: { radius: 12 } },
+    plotOptions: { pie: { donut: { size: "75%", labels: { show: true, total: { show: true, label: "Total", formatter: (w: any) => w.globals.seriesTotals.reduce((a: any, b: any) => a + b, 0) } } } } },
+    dataLabels: { enabled: false },
+    stroke: { show: false }
+  };
+
+  const radialOptions: any = {
+    chart: { type: "radialBar", fontFamily: 'Outfit, sans-serif' },
+    plotOptions: {
+      radialBar: {
+        startAngle: -135,
+        endAngle: 135,
+        hollow: { size: "70%" },
+        track: { background: "#f1f5f9", strokeWidth: "100%" },
+        dataLabels: {
+          name: { offsetY: -10, show: true, color: "#64748b", fontSize: "13px" },
+          value: { formatter: (val: any) => `${val}%`, color: "#1e293b", fontSize: "22px", fontWeight: "700", show: true }
+        }
+      }
+    },
+    fill: { type: "gradient", gradient: { shade: "dark", type: "horizontal", gradientToColors: ["#34d399"], stops: [0, 100] } },
+    stroke: { lineCap: "round" },
+    labels: ["Target Sales"]
+  };
+
   return (
-    <div className="p-4 md:p-6 space-y-6 bg-gray-50 min-h-screen">
-      <Breadcrumb
-        title="Dashboard"
-        desc="Ringkasan kinerja toko Anda secara keseluruhan"
-      />
+    <div className="p-4 md:p-6 space-y-8 bg-[#f8fafc] min-h-screen font-['Outfit']">
+      <Breadcrumb title="Ringkasan Pasar" desc="Analisis mendalam performa bisnis EnvoRent Anda" />
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <div className="col-span-1 lg:col-span-2 bg-white rounded-2xl p-4 md:p-6 shadow-sm">
-          <div className="flex flex-col md:flex-row justify-between items-start mb-4 gap-2">
+      {/* Top Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard label="Pendapatan Bulanan" value={formatRupiah(data?.revenue_this_month || 0)} growth={data?.revenue_growth} icon={Wallet} colorClass="bg-emerald-500" />
+        <StatCard label="Total Pesanan" value={data?.total_pesanan || 0} growth={5.2} icon={ShoppingBag} colorClass="bg-blue-500" />
+        <StatCard label="Pelanggan Aktif" value={data?.total_pelanggan || 0} growth={12.5} icon={Users} colorClass="bg-amber-500" />
+        <StatCard label="Total Produk" value={data?.total_produk || 0} icon={Shirt} colorClass="bg-rose-500" />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Main Revenue Chart */}
+        <GlassCard className="lg:col-span-8 overflow-hidden pointer-events-auto">
+          <div className="flex items-center justify-between mb-8">
             <div>
-              <h3 className="text-2xl font-bold text-gray-900">
-                {formatRupiah(154000000)}
-              </h3>
-              <p className="text-sm text-gray-500">
-                dibanding minggu lalu{" "}
-                <span className="text-emerald-600">+1.5% ↗</span>
-              </p>
+              <h3 className="text-xl font-bold text-gray-900">Analitik Pendapatan</h3>
+              <p className="text-sm text-gray-500">Performa pendapatan 7 hari terakhir</p>
             </div>
-            <div className="text-right">
-              <p className="text-sm font-semibold text-gray-700">
-                Pendapatan Harian
-              </p>
-              <p className="text-xs text-gray-400">Ringkasan mingguan</p>
+            <select className="bg-gray-50 border-none text-sm font-semibold rounded-xl px-4 py-2 outline-none cursor-pointer">
+              <option>7 Hari Terakhir</option>
+              <option>30 Hari Terakhir</option>
+            </select>
+          </div>
+          <div className="h-[300px] -ml-4">
+            <ApexCharts options={revenueChartOptions} series={[{ name: "Pendapatan", data: data?.weekly_sales || [] }]} type="area" height={320} />
+          </div>
+        </GlassCard>
+
+        {/* Sales Progress Radial */}
+        <GlassCard className="lg:col-span-4 flex flex-col items-center justify-center text-center">
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Target Bulanan</h3>
+          <p className="text-sm text-gray-500 mb-4 font-normal px-4">Progres pencapaian target Rp 50jt bulan ini</p>
+          <div className="w-full h-[280px]">
+            <ApexCharts options={radialOptions} series={[data?.sales_progress || 0]} type="radialBar" height={300} />
+          </div>
+          <div className="mt-2 bg-emerald-50 text-emerald-700 px-4 py-2 rounded-2xl text-xs font-bold border border-emerald-100 uppercase tracking-wider">
+            Tepat Waktu Untuk Selesai
+          </div>
+        </GlassCard>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Recent Transactions */}
+        <GlassCard className="lg:col-span-7">
+          <div className="flex items-center justify-between mb-8">
+            <h3 className="text-xl font-bold text-gray-900">Transaksi Terbaru</h3>
+            <button className="text-emerald-600 font-bold text-sm hover:underline">Lihat Semua</button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="text-left text-xs font-bold text-gray-400 uppercase tracking-widest border-b border-gray-50 pb-4">
+                  <th className="pb-4 font-bold">Pelanggan</th>
+                  <th className="pb-4 font-bold text-center">Status</th>
+                  <th className="pb-4 font-bold text-right">Jumlah</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50/50">
+                {data?.recent_transactions?.map((t: any) => (
+                  <tr key={t.id} className="group hover:bg-gray-50/50 transition-colors">
+                    <td className="py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 group-hover:bg-emerald-100 group-hover:text-emerald-600 transition-colors">
+                          <UserIcon size={18} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-gray-800">{t.customer}</p>
+                          <div className="flex items-center gap-1 text-[10px] text-gray-400 font-medium">
+                            <Clock size={10} /> {t.time}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-4 text-center">
+                      <StatusBadge status={t.status} />
+                    </td>
+                    <td className="py-4 text-right">
+                      <p className="text-sm font-extrabold text-gray-900">{formatRupiah(t.amount)}</p>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </GlassCard>
+
+        {/* Category Distribution */}
+        <GlassCard className="lg:col-span-5">
+           <h3 className="text-xl font-bold text-gray-900 mb-1">Performa Kategori</h3>
+           <p className="text-sm text-gray-500 mb-8">Distribusi item terjual per kategori</p>
+           <div className="h-[300px]">
+             <ApexCharts options={donutOptions} series={data?.category_sales?.series || []} type="donut" height={320} />
+           </div>
+        </GlassCard>
+      </div>
+
+      {/* Top Products */}
+      <GlassCard>
+        <div className="mb-8">
+          <h2 className="text-xl font-bold text-gray-900">Produk Unggulan</h2>
+          <p className="text-sm text-gray-500">Katalog produk dengan performa terbaik bulan ini</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
+          {data?.produk_terlaris?.map((item: any) => (
+            <div key={item.id} className="group relative">
+              <div className="aspect-[4/3] rounded-[2rem] overflow-hidden mb-4 bg-gray-100 relative">
+                <img src={item.img} alt={item.name} className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700" />
+                <div className="absolute top-4 right-4 bg-white/90 backdrop-blur px-3 py-1.5 rounded-2xl text-[10px] font-extrabold text-emerald-600 shadow-sm uppercase tracking-wider">
+                  Tersedia
+                </div>
+              </div>
+              <div className="px-2">
+                <h4 className="font-bold text-gray-800 text-base mb-1 group-hover:text-emerald-600 transition-colors line-clamp-1">{item.name}</h4>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-gray-400 capitalize">Penjualan: {item.sold} Unit</span>
+                  <div className="flex gap-0.5">
+                    {[1,2,3,4,5].map(s => <span key={s} className="text-amber-400 text-[10px]">★</span>)}
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-          <div className="h-48">
-            <ApexCharts
-              options={weeklySalesData.options}
-              series={weeklySalesData.series}
-              type="area"
-              height={200}
-            />
-          </div>
+          ))}
         </div>
-
-        <div className="bg-white rounded-2xl w-[570px] p-4 md:p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-700 mb-4">
-            Ringkasan Penjualan
-          </h2>
-          <ApexCharts
-            options={yearlySalesData.options}
-            series={yearlySalesData.series}
-            type="area"
-            height={240}
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4 col-span-1 lg:col-span-2">
-        <CardStat
-          label="Total Penjualan"
-          value={formatRupiah(425000000)}
-          percentage={25}
-        />
-        <CardStat label="Total Produk" value="325" percentage={45} />
-        <CardStat label="Total Pelanggan" value="985" percentage={65} />
-        <CardStat label="Total Pesanan" value="415" percentage={85} />
-      </div>
-
-      <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm">
-        <div className="mb-4">
-          <h2 className="text-lg font-semibold text-gray-700">
-            Produk Terlaris
-          </h2>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-          <FavouriteItem
-            name="Jersey Bola Nike"
-            img="https://source.unsplash.com/400x300/?jersey"
-          />
-          <FavouriteItem
-            name="Sepatu Lari Adidas"
-            img="https://source.unsplash.com/400x300/?sneakers"
-          />
-          <FavouriteItem
-            name="Topi Training Puma"
-            img="https://source.unsplash.com/400x300/?cap"
-          />
-          <FavouriteItem
-            name="Jaket Olahraga"
-            img="https://source.unsplash.com/400x300/?jacket"
-          />
-        </div>
-      </div>
+      </GlassCard>
     </div>
   );
 };
