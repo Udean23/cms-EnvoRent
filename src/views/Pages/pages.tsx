@@ -4,8 +4,6 @@ export { default as Category } from './Admin/Category';
 export { default as Product } from './Admin/Product';
 export { default as Bundling } from './Admin/Bundling';
 export { default as BundlingDetail } from './Admin/Bundling/detail';
-export { default as BundlingCreate } from './Admin/Bundling/widgets/Create';
-export { default as BundlingEdit } from './Admin/Bundling/widgets/Edit';
 export { default as ProductDetail } from './Admin/Product/detail';
 export { default as ProductCreate } from './Admin/Product/widgets/Create';
 export { default as ProductEdit } from './Admin/Product/widgets/Edit';

@@ -53,9 +53,7 @@ export const MainLayout = () => {
             sidebar === "full" ? "pl-64" : "pl-16"
           }`}
         >
-          <div className="p-4 rounded-lg">
-            <Outlet />
-          </div>
+          <Outlet />
         </main>
       </div>
     </div>

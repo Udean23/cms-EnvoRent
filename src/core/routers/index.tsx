@@ -63,14 +63,6 @@ export const router = createBrowserRouter([
         element: <BundlingDetail />
       },
       {
-        path: "bundling/create",
-        element: <BundlingCreate />
-      },
-      {
-        path: "bundling/edit/:id",
-        element: <BundlingEdit />
-      },
-      {
         path: "product/:id",
         element: <ProductDetail />
       },

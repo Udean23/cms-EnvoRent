@@ -59,7 +59,7 @@ export const Header = ({
     <header className="h-16 bg-gradient-to-r from-emerald-600 to-green-500 fixed top-0 left-0 right-0 z-30 flex items-center justify-between px-6 shadow-lg">
       <button
         onClick={onToggleSidebar}
-        className="text-white hover:bg-white/15 p-2 rounded-lg"
+        className="text-white hover:bg-white/15 p-2 rounded-lg border-none bg-transparent cursor-pointer"
       >
         <FiMenu size={20} />
       </button>
@@ -118,7 +118,7 @@ export const Header = ({
                 <button
                   onClick={handleLogout}
                   disabled={isLoggingOut}
-                  className="w-full py-3 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 flex items-center justify-center gap-2"
+                  className="w-full py-3 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 flex items-center justify-center gap-2 border-none cursor-pointer"
                 >
                   <FiLogOut size={16} />
                   {isLoggingOut ? "Logging out..." : "Logout"}

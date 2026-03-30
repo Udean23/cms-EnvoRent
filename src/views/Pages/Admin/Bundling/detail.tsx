@@ -1,300 +1,250 @@
-import { useState, useEffect, useRef } from "react";
-import { ArrowLeft, ShoppingCart } from "lucide-react";
-
-const dummyBundlingDetail = {
-  id: "BDL-SNEAKER-003",
-  name: "Paket Sneaker Collector",
-  kode_Bundling: "BDL003",
-  price: 8900000,
-  stock: 15,
-  status: "active",
-  category: "Shoes",
-  description: `Paket Sneaker Collector adalah koleksi eksklusif yang menggabungkan 5 sepatu premium dari brand ternama dunia. 
-
-Paket ini dirancang khusus untuk para kolektor dan penggemar sneaker yang menginginkan koleksi lengkap dengan harga yang lebih hemat.
-
-Keunggulan Paket:
-• Hemat hingga 15% dibanding beli satuan
-• Produk original dan bergaransi resmi
-• Pilihan warna dan ukuran lengkap
-• Free shipping untuk seluruh Indonesia
-• Packaging premium eksklusif
-
-Cocok untuk:
-- Kolektor sneaker profesional
-- Gift premium untuk orang tersayang
-- Investment koleksi jangka panjang
-- Pemakaian sehari-hari dengan gaya berbeda setiap hari`,
-  image: "/public/img/Products/shoes3.png",
-  bundling_material_count: 5,
-  bundling_material: [
-    {
-      product_name: "Reebok Zig Kinetica 3",
-      product_detail_id: "REEBOK-ZIG-1325",
-      variant_name: "White / Size 42",
-      quantity: 1,
-      unit_code: "Pcs",
-      sum_stock: 10,
-      image: "/public/img/Products/shoes1.png"
-    },
-    {
-      product_name: "Nike Air Max 270",
-      product_detail_id: "NIKE-AIRMAX-270",
-      variant_name: "Black / Size 42",
-      quantity: 1,
-      unit_code: "Pcs",
-      sum_stock: 11,
-      image: "/public/img/Products/shoes2.png"
-    },
-    {
-      product_name: "Adidas Ultraboost 22",
-      product_detail_id: "ADIDAS-ULTRA-22",
-      variant_name: "Gray / Size 42",
-      quantity: 1,
-      unit_code: "Pcs",
-      sum_stock: 10,
-      image: "/public/img/Products/shoes3.png"
-    },
-    {
-      product_name: "Puma RS-X Efekt",
-      product_detail_id: "PUMA-RSX-001",
-      variant_name: "Red / Size 42",
-      quantity: 1,
-      unit_code: "Pcs",
-      sum_stock: 6,
-      image: "/public/img/Products/shoes4.png"
-    },
-    {
-      product_name: "New Balance 574 Core",
-      product_detail_id: "NB-574-CORE",
-      variant_name: "Gray / Size 42",
-      quantity: 1,
-      unit_code: "Pcs",
-      sum_stock: 5,
-      image: "/public/img/Products/shoes5.png"
-    }
-  ]
-};
-
+import { useState, useEffect } from "react";
+import { ArrowLeft, Tag, Info, TrendingUp, DollarSign, Calendar, Box, Activity, ShieldCheck, Layers, Package } from "lucide-react";
+import { useParams, useNavigate } from "react-router-dom";
 import { Breadcrumb } from "@/views/Components/breadcrumb";
-import { useNavigate } from "react-router-dom";
+import { useApiClient } from "@/core/helpers/ApiClient";
+import { motion } from "framer-motion";
+
+const formatRupiah = (value: number) =>
+  new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+  }).format(value);
+
+const StatCard = ({ label, value, icon: Icon, colorClass, subtitle }: any) => (
+  <div className="bg-white/60 border border-white/50 backdrop-blur-md rounded-3xl p-6 shadow-sm flex flex-col gap-4">
+    <div className="flex items-center justify-between">
+      <div className={`p-3 rounded-2xl ${colorClass} bg-opacity-10`}>
+        <Icon size={22} className={colorClass.replace("bg-", "text-")} />
+      </div>
+      {subtitle && <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{subtitle}</span>}
+    </div>
+    <div>
+      <p className="text-xs font-bold text-gray-500 mb-1">{label}</p>
+      <p className="text-2xl font-black text-gray-900 tracking-tight">{value}</p>
+    </div>
+  </div>
+);
+
+const InfoRow = ({ label, value, icon: Icon }: any) => (
+  <div className="flex items-center justify-between py-4 border-b border-gray-100 last:border-0">
+    <div className="flex items-center gap-3">
+      <div className="text-gray-400">
+        <Icon size={18} />
+      </div>
+      <span className="text-sm font-bold text-gray-500">{label}</span>
+    </div>
+    <span className="text-sm font-black text-gray-800">{value}</span>
+  </div>
+);
 
 export default function BundlingDetailPage() {
-  const [packageData] = useState(dummyBundlingDetail);
-  const [selectedOptionIndex, setSelectedOptionIndex] = useState(0);
-  const [showModal, setShowModal] = useState(false);
-  const modalRef = useRef(null);
-  const Navigate = useNavigate();
+    const { id } = useParams();
+    const navigate = useNavigate();
+    const apiClient = useApiClient();
+    const [pkg, setPkg] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (modalRef.current && !modalRef.current.contains(event.target)) {
-        setShowModal(false);
-      }
+    useEffect(() => {
+        const fetchBundling = async () => {
+            setLoading(true);
+            try {
+                const response = await apiClient.get(`/bundlings/${id}`);
+                if (response.data && response.data.bundling) {
+                    setPkg(response.data.bundling);
+                }
+            } catch (error) {
+                console.error("Failed to fetch bundling detail", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        if (id) fetchBundling();
+    }, [id, apiClient]);
+
+    const calculateBundleStock = (materials: any[]) => {
+        if (!materials || materials.length === 0) return 0;
+        const stocks = materials.map(m => {
+            const pStock = m.product?.stock ?? 0;
+            return Math.floor(pStock / m.quantity);
+        });
+        return Math.min(...stocks);
     };
 
-    if (showModal) {
-      document.addEventListener("mousedown", handleClickOutside);
-    } else {
-      document.removeEventListener("mousedown", handleClickOutside);
+    if (loading) {
+        return (
+            <div className="p-6 min-h-screen flex items-center justify-center bg-[#f8fafc]">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500"></div>
+                    <p className="text-gray-400 font-bold text-sm animate-pulse uppercase tracking-widest font-['Outfit']">Menyelami Data...</p>
+                </div>
+            </div>
+        );
     }
 
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showModal]);
-
-  const formatPrice = (price) => {
-    return price.toLocaleString("id-ID");
-  };
-
-  const handleBack = () => {
-    Navigate(-1);
-  };
-
-  if (!packageData) {
-    return (
-      <div className="p-6 space-y-6">
-        <Breadcrumb title="Detail Bundling Produk" desc="Data Bundling Produk" />
-        <div className="bg-white rounded-lg p-8 text-center text-gray-500 py-12">
-          Loading...
-        </div>
-      </div>
-    );
-  }
-
-  const allVariants = packageData.bundling_material || [];
-
-  return (
-    <div className="p-6">
-      <Breadcrumb title="Detail Bundling Produk" desc="Data Bundling Produk" />
-
-      <div className="bg-white p-6 rounded-xl shadow-md mt-4">
-        <div className="flex flex-col lg:flex-row gap-12">
-          <div className="w-full lg:w-[420px]">
-            <img
-              src={packageData.image}
-              alt={packageData.name}
-              className="w-full h-[480px] object-cover rounded-xl shadow"
-            />
-          </div>
-
-          <div className="flex-1 flex flex-col gap-4">
-            <div>
-              <h1 className="text-xl font-bold text-gray-800 uppercase">
-                {packageData.name}
-              </h1>
-              <p className="text-sm text-gray-500 mt-1">
-                Terdiri dari {allVariants.length} item produk berikut ini
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              {allVariants.slice(0, 4).map((variant, idx) => (
-                <button
-                  key={variant.product_detail_id}
-                  onClick={() => setSelectedOptionIndex(idx)}
-                  className={`w-full flex items-start gap-3 border p-3 rounded-2xl shadow-sm hover:bg-gray-100 transition ${
-                    selectedOptionIndex === idx
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-200 bg-gray-50"
-                  }`}
-                >
-                  <img
-                    src={variant.image}
-                    className="w-10 h-10 rounded-full object-cover"
-                    alt={variant.product_name}
-                  />
-                  <div className="flex flex-col items-start">
-                    <span className="text-sm text-gray-800 font-semibold">
-                      {variant.product_name}{" "}
-                      <span className="text-gray-400">Varian</span>{" "}
-                      {variant.variant_name}
-                    </span>
-                    <span className="flex items-center text-gray-500 text-sm gap-2 mt-1">
-                      <ShoppingCart size={16} /> Quantity {variant.quantity}{" "}
-                      {variant.unit_code}
-                    </span>
-                  </div>
-                </button>
-              ))}
-
-              {allVariants.length > 4 && (
-                <button
-                  className="bg-blue-500 text-white text-sm px-4 py-2 rounded-md w-fit mt-2 hover:bg-blue-600"
-                  onClick={() => setShowModal(true)}
-                >
-                  Item Lainnya ▼
-                </button>
-              )}
-            </div>
-
-            <div className="pb-4 border-b border-gray-300">
-              <p className="text-gray-500 text-sm mb-1">
-                {packageData.kode_Bundling}
-              </p>
-              <p className="text-2xl font-bold text-gray-800">
-                Rp {formatPrice(packageData.price)}
-              </p>
-            </div>
-
-            <div className="flex gap-2 items-center">
-              <span className="text-sm text-gray-600">Stok:</span>
-              <span className="text-sm font-semibold text-gray-800">
-                {packageData.stock} Paket
-              </span>
-            </div>
-
-            <div className="flex gap-2 items-center">
-              <span className="text-sm text-gray-600">Status:</span>
-              <span
-                className={`text-sm font-semibold px-3 py-1 rounded-full ${
-                  packageData.status === "active"
-                    ? "bg-green-100 text-green-700"
-                    : "bg-red-100 text-red-700"
-                }`}
-              >
-                {packageData.status === "active" ? "Tersedia" : "Tidak Tersedia"}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-10 pt-6">
-          <h2 className="font-bold text-xl text-gray-800 mb-4 border-b border-gray-300 pb-8">
-            Deskripsi Produk Bundling
-          </h2>
-          <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
-            {packageData.description || (
-              <span className="italic text-gray-400">Belum ada deskripsi</span>
-            )}
-          </p>
-        </div>
-
-        <div className="w-full flex justify-end">
-          <button
-            className="mt-8 bg-gray-400 cursor-pointer text-white px-4 py-2 rounded-md hover:bg-gray-600 transition"
-            onClick={handleBack}
-          >
-            <span className="flex items-center gap-2">
-              <ArrowLeft size={16} /> Kembali
-            </span>
-          </button>
-        </div>
-      </div>
-
-      {showModal && (
-        <div
-          className="fixed inset-0 z-50 bg-black bg-opacity-80 flex items-center justify-center"
-        >
-          <div
-            ref={modalRef}
-            className="bg-white rounded-xl w-full max-w-md max-h-[80vh] overflow-y-auto shadow-lg p-6"
-          >
-            <h3 className="font-bold text-lg mb-4">
-              Bundling {packageData.name}
-            </h3>
-            <p className="text-sm text-gray-500 mb-4">
-              Terdiri dari {allVariants.length} item berikut
-            </p>
-
-            <div className="flex flex-col gap-2">
-              {allVariants.map((variant) => (
-                <div
-                  key={variant.product_detail_id}
-                  className="w-full flex items-start gap-3 border border-gray-200 bg-gray-50 p-3 rounded-2xl shadow-sm"
-                >
-                  <img
-                    src={variant.image}
-                    className="w-10 h-10 rounded-full object-cover"
-                    alt={variant.product_name}
-                  />
-                  <div className="flex flex-col items-start">
-                    <span className="text-sm text-gray-800 font-semibold">
-                      {variant.product_name}{" "}
-                      <span className="text-gray-400">Varian</span>{" "}
-                      {variant.variant_name}
-                    </span>
-                    <span className="flex items-center text-gray-500 text-sm gap-2 mt-1">
-                      <ShoppingCart size={16} /> Quantity {variant.quantity}{" "}
-                      {variant.unit_code}
-                    </span>
-                  </div>
+    if (!pkg) {
+        return (
+            <div className="p-6 min-h-screen bg-[#f8fafc] font-['Outfit'] flex flex-col items-center justify-center">
+                <div className="bg-white/80 backdrop-blur-xl border border-white/40 shadow-xl rounded-[2.5rem] p-12 text-center max-w-md">
+                    <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <Activity size={40} />
+                    </div>
+                    <h2 className="text-2xl font-bold text-gray-800">404 - Not Found</h2>
+                    <p className="text-gray-500 mt-2 mb-8">Data bundling tidak tersedia atau telah dihapus dari server.</p>
+                    <button onClick={() => navigate(-1)} className="w-full bg-gray-900 text-white px-8 py-4 rounded-2xl font-bold hover:bg-gray-800 transition-all flex items-center justify-center gap-2 border-none cursor-pointer">
+                        <ArrowLeft size={18} /> Kembali ke Katalog
+                    </button>
                 </div>
-              ))}
             </div>
+        );
+    }
 
-            <div className="flex justify-end mt-6">
-              <button
-                className="px-4 py-2 bg-gray-500 hover:bg-gray-700 text-white rounded"
-                onClick={() => setShowModal(false)}
-              >
-                Tutup
-              </button>
+    const stock = calculateBundleStock(pkg.materials || []);
+    const imageUrl = pkg.image 
+        ? (pkg.image.startsWith('http') ? pkg.image : `http://localhost:8000/storage/${pkg.image}`)
+        : "https://via.placeholder.com/600x800?text=No+Image";
+
+    return (
+        <div className="p-6 md:p-12 bg-[#f8fafc] min-h-screen font-['Outfit'] text-gray-900">
+            <div className="max-w-6xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-5">
+                        <button onClick={() => navigate(-1)} className="p-3 bg-white hover:bg-gray-50 border border-gray-100 rounded-2xl shadow-sm text-gray-400 hover:text-gray-900 transition-all group border-none cursor-pointer">
+                            <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
+                        </button>
+                        <div>
+                            <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em] mb-1 block">Konfigurasi Bundling Premium</span>
+                            <h1 className="text-3xl font-black tracking-tight">{pkg.name}</h1>
+                        </div>
+                    </div>
+                    <div className="hidden md:flex flex-col items-end">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Update Terakhir</span>
+                        <div className="flex items-center gap-2 text-sm font-black text-gray-800">
+                            <Calendar size={14} className="text-gray-400" />
+                            {new Date(pkg.updated_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                    
+                    <div className="lg:col-span-5 space-y-8">
+                        <div className="bg-white p-3 rounded-[3rem] shadow-2xl shadow-gray-200/50 relative group">
+                            <div className="aspect-[4/5] rounded-[2.5rem] overflow-hidden bg-gray-50 relative">
+                                <img src={imageUrl} alt={pkg.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-gray-900/40 via-transparent to-transparent"></div>
+                                <div className="absolute top-6 left-6 flex gap-2">
+                                    <div className="bg-white/90 backdrop-blur px-4 py-2 rounded-2xl shadow-sm text-[10px] font-black uppercase text-emerald-600 tracking-widest border border-white/50">
+                                        {pkg.category?.name || "Premium"}
+                                    </div>
+                                    <div className={`bg-gray-900/80 backdrop-blur px-4 py-2 rounded-2xl shadow-sm text-[10px] font-black uppercase text-white tracking-widest border border-white/10 ${stock === 0 ? 'text-rose-400' : ''}`}>
+                                        Stok: {stock}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-4">
+                            <div className="bg-gradient-to-br from-indigo-900 to-indigo-800 rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-xl">
+                                <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-indigo-500/20 blur-3xl rounded-full"></div>
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="p-2 bg-white/10 rounded-xl">
+                                        <TrendingUp size={20} className="text-indigo-400" />
+                                    </div>
+                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Komposisi Bundling</span>
+                                </div>
+                                <div className="space-y-6 relative z-10">
+                                    <div className="flex justify-between items-end">
+                                        <div>
+                                            <p className="text-3xl font-black">{pkg.materials?.length || 0}</p>
+                                            <p className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">Produk Dalam Paket</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-xl font-black text-indigo-400 italic">#{pkg.id}</p>
+                                            <p className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">Registry ID</p>
+                                        </div>
+                                    </div>
+                                    <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                                        <div className="h-full bg-indigo-400 w-full rounded-full shadow-[0_0_15px_rgba(129,140,248,0.5)]"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="lg:col-span-7 space-y-8">
+                        
+                        <div className="space-y-6">
+                            <div className="flex items-center justify-between border-b border-gray-100 pb-8">
+                                <div className="space-y-1">
+                                    <h2 className="text-4xl font-black tracking-tight text-gray-900 uppercase">Deskripsi</h2>
+                                    <div className="flex items-center gap-3 text-sm text-gray-400 font-bold">
+                                        <Layers size={16} />
+                                        <span>SKU Bundling: BNDL-{pkg.id.toString().padStart(4, '0')}</span>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-3xl font-black text-emerald-600 tracking-tighter">{formatRupiah(pkg.price)}</p>
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Harga Paket / Hari</p>
+                                </div>
+                            </div>
+                            
+                            <p className="text-lg text-gray-500 font-medium leading-relaxed italic border-l-4 border-emerald-500/30 pl-8 py-2">
+                                {pkg.description || "Paket bundling ini dirancang untuk memberikan nilai maksimal bagi penyewa dengan kombinasi produk yang saling melengkapi."}
+                            </p>
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            <StatCard label="Harga Sewa" value={formatRupiah(pkg.price)} icon={DollarSign} colorClass="bg-emerald-500" subtitle="Daily Rate" />
+                            <StatCard label="Ketersediaan" value={`${stock} Paket`} icon={Box} colorClass="bg-blue-500" subtitle="Virtual Stock" />
+                            <StatCard label="Kategori" value={pkg.category?.name || "Premium"} icon={Tag} colorClass="bg-purple-500" subtitle="Classification" />
+                        </div>
+
+                        <div className="bg-white/70 border border-white/50 backdrop-blur-xl rounded-[2.5rem] p-10 space-y-8 shadow-sm">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-gray-900 text-white rounded-2xl">
+                                    <Package size={20} />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-black tracking-tight">Material Produk</h3>
+                                    <p className="text-xs text-gray-400 font-bold">Daftar perangkat yang termasuk dalam paket ini</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                {pkg.materials?.map((item: any) => (
+                                    <div key={item.id} className="flex items-center justify-between py-4 border-b border-gray-50 last:border-0 group">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-50 border border-gray-100 shrink-0 group-hover:scale-110 transition-transform">
+                                                <img src={item.product?.image ? `http://localhost:8000/storage/${item.product.image}` : "https://via.placeholder.com/50"} className="w-full h-full object-cover" />
+                                            </div>
+                                            <div>
+                                                <h4 className="text-sm font-black text-gray-800 uppercase italic leading-none mb-1">{item.product?.name}</h4>
+                                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{item.product?.category?.name || "Equipment"}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-6">
+                                            <div className="text-right">
+                                                <p className="text-xs font-black text-gray-900 italic">x{item.quantity} Unit</p>
+                                                <p className="text-[9px] font-bold text-emerald-500 uppercase">{formatRupiah(item.product?.price)} / unit</p>
+                                            </div>
+                                            <div className="hidden sm:block">
+                                                <ShieldCheck size={18} className="text-emerald-400" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="text-center pt-4">
+                            <p className="text-[10px] font-black text-gray-300 uppercase tracking-[0.3em]">EnvoRent Bundling Intelligence System • 2026</p>
+                        </div>
+                    </div>
+                </div>
             </div>
-          </div>
         </div>
-      )}
-    </div>
-  );
+    );
 }

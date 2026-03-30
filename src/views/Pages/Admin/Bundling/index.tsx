@@ -1,223 +1,304 @@
-import { Eye, Pencil, Trash, X } from "lucide-react";
-import { useState } from "react";
-import { FiMoreVertical, FiPlus } from "react-icons/fi";
+import { useEffect, useState, useMemo, useCallback } from "react";
+import { Eye, Pencil, Trash, Plus, Search, MoreVertical, Package, ChevronRight, ChevronLeft, LayoutGrid } from "lucide-react";
+import Swal from "sweetalert2";
+import { useApiClient } from "@/core/helpers/ApiClient";
 import { Breadcrumb } from "@/views/Components/breadcrumb";
-import dummyBundlingData from "@/core/dummy/bundlingdummy";
-import BundlingFilterModal from "@/views/Components/Modal/Bundling/FilterModal";
-import SearchInput from "@/views/Components/Input/SearchInput";
-import Filter from "@/views/Components/Button/filterBtn";
 import { useNavigate } from "react-router-dom";
+import AddBundlingModal from "@/views/Components/Modal/Bundling/AddBundlingModal";
 
-export default function Bundling() {
-    const nav = useNavigate();
-    const [searchQuery, setSearchQuery] = useState("");
-    const [dropdownOpenId, setDropdownOpenId] = useState(null);
-    const [packages, setPackages] = useState(dummyBundlingData);
-    const [showFilter, setShowFilter] = useState(false);
-    const [filterValues, setFilterValues] = useState({
-        minPrice: "",
-        maxPrice: "",
-        minMaterial: "",
-        maxMaterial: ""
+const formatRupiah = (value: number) =>
+  new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+  }).format(value);
+
+const BundlingCard = ({ bundle, onEdit, onDelete, onDetail, openDropdown, setOpenDropdown }: any) => {
+  const imageUrl = bundle.image 
+    ? (bundle.image.startsWith('http') ? bundle.image : `http://localhost:8000/storage/${bundle.image}`)
+    : "https://via.placeholder.com/400x300?text=No+Image";
+
+  const calculateBundleStock = (materials: any[]) => {
+    if (!materials || materials.length === 0) return 0;
+    const stocks = materials.map(m => {
+        const pStock = m.product?.stock ?? 0;
+        return Math.floor(pStock / m.quantity);
     });
-    const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 8;
+    return Math.min(...stocks);
+  };
 
-    const filteredPackages = packages.filter((pkg) => {
-        const matchesSearch =
-            pkg.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            pkg.kode_Bundling.toLowerCase().includes(searchQuery.toLowerCase());
+  const stock = calculateBundleStock(bundle.materials);
 
-        const matchesPrice =
-            (!filterValues.minPrice || pkg.harga >= Number(filterValues.minPrice)) &&
-            (!filterValues.maxPrice || pkg.harga <= Number(filterValues.maxPrice));
-
-        const matchesMaterial =
-            (!filterValues.minMaterial ||
-                pkg.bundling_material_count >= Number(filterValues.minMaterial)) &&
-            (!filterValues.maxMaterial ||
-                pkg.bundling_material_count <= Number(filterValues.maxMaterial));
-
-        return matchesSearch && matchesPrice && matchesMaterial;
-    });
-
-    const totalPages = Math.ceil(filteredPackages.length / itemsPerPage);
-    const displayedPackages = filteredPackages.slice(
-        (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage
-    );
-
-    const formatPrice = (price) => {
-        return `Rp ${price.toLocaleString("id-ID")}`;
-    };
-
-    const handleApplyFilter = () => {
-        setCurrentPage(1);
-        setShowFilter(false);
-    };
-
-    const isFilterActive = Object.values(filterValues).some((v) => v && v !== "");
-
-    const handleDetail = (pkg) => {
-        nav(`/bundling/${pkg.id}`);
-    };
-
-    const handleEdit = (pkg) => {
-        nav(`/bundling/edit/${pkg.id}`);
-    };
-
-    const handleDelete = (pkg) => {
-        if (window.confirm(`Apakah Anda yakin ingin menghapus bundling "${pkg.name}"?`)) {
-            setPackages(packages.filter((p) => p.id !== pkg.id));
-            alert("Bundling berhasil dihapus!");
-        }
-        setDropdownOpenId(null);
-    };
-
-    return (
-        <div className="p-4 md:p-6 space-y-6 bg-gray-50 min-h-screen">
-            <Breadcrumb title="Bundling" desc="Data Bundling Produk" />
-
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-                <div className="flex items-center gap-2 w-full sm:w-auto max-w-lg">
-                    <SearchInput value={searchQuery} onChange={(val) => setSearchQuery(val)} />
-                    <div className="relative">
-                        <Filter onClick={() => setShowFilter(true)} />
-                        {isFilterActive && (
-                            <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white"></span>
-                        )}
-                    </div>
-                </div>
-                <div className="flex gap-2 w-full sm:w-auto">
-                    <button
-                        className="bg-gradient-to-r from-[#0050E0] to-purple-600 hover:bg-gradient-to-tr hover:from-[#0050E0] hover:to-purple-600 text-white flex items-center gap-2 px-4 py-2 rounded-lg font-medium cursor-pointer"
-                        onClick={() => nav("/bundling/create")}
-                    >
-                        <FiPlus /> Tambah Bundling
+  return (
+    <div className="bg-white/70 backdrop-blur-xl border border-white/40 rounded-[2rem] p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] transition-all duration-500 group relative">
+        <div className="absolute top-4 right-4 z-10">
+            <button 
+                onClick={() => setOpenDropdown(openDropdown === bundle.id ? null : bundle.id)}
+                className="p-2 hover:bg-white/50 rounded-full transition-colors cursor-pointer border-none bg-transparent"
+            >
+                <MoreVertical size={18} className="text-gray-500" />
+            </button>
+            {openDropdown === bundle.id && (
+                <div className="absolute right-0 mt-2 w-40 bg-white/90 backdrop-blur-2xl border border-gray-100 rounded-2xl shadow-xl z-20 py-2 animate-in fade-in zoom-in-95 duration-200">
+                    <button onClick={() => onDetail(bundle)} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition-colors cursor-pointer border-none bg-transparent font-bold">
+                        <Eye size={16} /> Detail
+                    </button>
+                    <button onClick={() => onEdit(bundle)} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors cursor-pointer border-none bg-transparent font-bold">
+                        <Pencil size={16} /> Edit
+                    </button>
+                    <button onClick={() => onDelete(bundle)} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer border-none bg-transparent font-bold">
+                        <Trash size={16} /> Hapus
                     </button>
                 </div>
+            )}
+        </div>
+
+        <div className="aspect-[4/3] rounded-3xl overflow-hidden mb-5 bg-gray-50 relative group-hover:scale-[1.02] transition-transform duration-500">
+            <img src={imageUrl} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt={bundle.name} />
+            <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-2xl text-[10px] font-extrabold text-emerald-600 shadow-sm uppercase tracking-wider">
+                {bundle.category?.name || "Bundling"}
+            </div>
+            <div className={`absolute bottom-4 right-4 bg-gray-900/80 backdrop-blur-md px-3 py-1.5 rounded-xl text-[10px] font-bold text-white shadow-sm uppercase tracking-wider ${stock === 0 ? 'text-rose-400' : ''}`}>
+                Stok: {stock}
+            </div>
+        </div>
+
+        <div className="space-y-2 px-1">
+            <div className="flex items-center justify-between">
+                <h3 className="font-bold text-gray-800 text-lg line-clamp-1 group-hover:text-emerald-600 transition-colors">{bundle.name}</h3>
+                <div className="flex -space-x-2">
+                    {bundle.materials?.slice(0, 3).map((m: any, idx: number) => (
+                        <div key={idx} className="w-6 h-6 rounded-full border-2 border-white overflow-hidden shadow-sm">
+                            <img src={m.product?.image ? `http://localhost:8000/storage/${m.product.image}` : "https://via.placeholder.com/20"} className="w-full h-full object-cover" />
+                        </div>
+                    ))}
+                </div>
+            </div>
+            <p className="text-gray-400 text-xs font-medium line-clamp-2 min-h-[32px]">{bundle.description || "Paket peralatan premium untuk kebutuhan profesional Anda."}</p>
+            <div className="pt-3 flex items-center justify-between border-t border-gray-100 mt-4">
+                <span className="text-emerald-600 font-extrabold text-lg">{formatRupiah(bundle.price)}</span>
+                <span className="bg-gray-100 text-gray-400 px-2.5 py-1 rounded-xl text-[10px] font-bold uppercase tracking-tighter">ID: {bundle.id}</span>
+            </div>
+        </div>
+    </div>
+  );
+};
+
+export default function Bundling() {
+  const navigate = useNavigate();
+  const apiClient = useApiClient();
+  const [bundlings, setBundlings] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [dropdownOpenId, setDropdownOpenId] = useState<number | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedBundle, setSelectedBundle] = useState<any>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await apiClient.get("/bundlings");
+      setBundlings(response.data.bundlings || []);
+    } catch (error) {
+      console.error("Failed to fetch bundlings", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [apiClient]);
+
+  const fetchCategories = useCallback(async () => {
+    try {
+      const response = await apiClient.get("/categories");
+      setCategories(response.data.categories || []);
+    } catch (error) {
+      console.error("Gagal mengambil data kategori", error);
+    }
+  }, [apiClient]);
+
+  useEffect(() => {
+    fetchData();
+    fetchCategories();
+  }, [fetchData, fetchCategories]);
+
+  const filteredBundlings = useMemo(() => {
+    return bundlings.filter((b) => {
+      const matchesSearch = b.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesCategory = selectedCategory === "" || b.category_id.toString() === selectedCategory;
+      return matchesSearch && matchesCategory;
+    });
+  }, [bundlings, searchQuery, selectedCategory]);
+
+  const totalPages = Math.ceil(filteredBundlings.length / itemsPerPage);
+  const displayedBundlings = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredBundlings.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredBundlings, currentPage]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedCategory]);
+
+  const handleDelete = async (bundle: any) => {
+    const result = await Swal.fire({
+      title: "Hapus Bundling?",
+      text: `Anda akan menghapus "${bundle.name}". Tindakan ini tidak dapat dibatalkan!`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#EF4444",
+      cancelButtonColor: "#94A3B8",
+      confirmButtonText: "Ya, Hapus!",
+      cancelButtonText: "Batal",
+      reverseButtons: true,
+      customClass: {
+        popup: 'rounded-[2rem]',
+        confirmButton: 'rounded-2xl px-6 py-3 font-bold',
+        cancelButton: 'rounded-2xl px-6 py-3 font-bold'
+      }
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await apiClient.delete(`/bundlings/${bundle.id}`);
+        Swal.fire("Terhapus!", "Bundling berhasil dihapus.", "success");
+        fetchData();
+      } catch (error) {
+        Swal.fire("Gagal", "Terjadi kesalahan saat menghapus bundling.", "error");
+      }
+    }
+    setDropdownOpenId(null);
+  };
+
+  const openAddModal = () => {
+    setSelectedBundle(null);
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (bundle: any) => {
+    setSelectedBundle(bundle);
+    setIsModalOpen(true);
+    setDropdownOpenId(null);
+  };
+
+  const goDetail = (bundle: any) => {
+    navigate(`/bundling/${bundle.id}`);
+  };
+
+  return (
+    <div className="p-4 md:p-6 space-y-8 bg-[#f8fafc] min-h-screen font-['Outfit']">
+      <Breadcrumb title="Katalog Bundling" desc="Kelola paket peralatan dan stok gabungan Anda" />
+      
+      <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+        <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
+            <div className="relative w-full md:w-80 group">
+                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors" />
+                <input 
+                    type="text" 
+                    placeholder="Cari paket..." 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full bg-white/70 backdrop-blur border-none rounded-2xl pl-12 pr-4 py-4 text-sm font-medium shadow-sm outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all"
+                />
+            </div>
+            
+            <div className="relative w-full md:w-56 group">
+                <LayoutGrid size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors" />
+                <select 
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    className="w-full bg-white/70 backdrop-blur border-none rounded-2xl pl-12 pr-4 py-4 text-sm font-medium shadow-sm outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
+                >
+                    <option value="">Semua Kategori</option>
+                    {categories.map(cat => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                </select>
+            </div>
+        </div>
+        
+        <button 
+            onClick={openAddModal}
+            className="w-full md:w-auto bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-black px-6 py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all active:scale-95 cursor-pointer border-none"
+        >
+            <Plus size={20} />
+            <span>Tambah Bundling</span>
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500"></div>
+            <p className="text-gray-401 font-bold text-sm animate-pulse uppercase tracking-wider">Memuat Bundling...</p>
+        </div>
+      ) : displayedBundlings.length === 0 ? (
+        <div className="bg-white/50 backdrop-blur-xl border border-dashed border-gray-200 rounded-[3rem] py-32 flex flex-col items-center justify-center text-center px-4">
+            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-gray-300 mb-6">
+                <Package size={40} />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-400">Tidak Ada Bundling</h3>
+            <p className="text-gray-400 max-w-xs mt-2">Belum ada paket yang terdaftar atau tidak ditemukan berdasarkan kriteria Anda.</p>
+        </div>
+      ) : (
+        <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                {displayedBundlings.map((b) => (
+                    <BundlingCard 
+                        key={b.id} 
+                        bundle={b} 
+                        onEdit={openEditModal} 
+                        onDelete={handleDelete} 
+                        onDetail={goDetail}
+                        openDropdown={dropdownOpenId}
+                        setOpenDropdown={setDropdownOpenId}
+                    />
+                ))}
             </div>
 
-            {displayedPackages.length === 0 ? (
-                <div className="text-gray-500 text-center py-12">
-                    Tidak ada paket bundling ditemukan.
-                </div>
-            ) : (
-                <>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                        {displayedPackages.map((pkg) => (
-                            <div key={pkg.id} className="bg-white rounded-xl shadow-md p-4 relative">
-                                <div className="absolute top-3 right-3">
-                                    <button
-                                        className="p-1 rounded-full cursor-pointer hover:bg-gray-100"
-                                        onClick={() =>
-                                            setDropdownOpenId(dropdownOpenId === pkg.id ? null : pkg.id)
-                                        }
-                                    >
-                                        <FiMoreVertical size={18} className="text-gray-600" />
-                                    </button>
-                                    {dropdownOpenId === pkg.id && (
-                                        <div className="absolute right-0 top-8 w-40 bg-white border border-gray-300 rounded-lg shadow-lg z-20 py-1">
-                                            <button
-                                                className="w-full cursor-pointer text-left px-4 py-2 flex items-center gap-2 hover:bg-gray-100 text-sm"
-                                                onClick={() => handleDetail(pkg)}
-                                            >
-                                                <Eye size={16} /> Detail
-                                            </button>
-                                            <button
-                                                className="w-full cursor-pointer text-left px-4 py-2 flex items-center gap-2 hover:bg-gray-100 text-sm"
-                                                onClick={() => handleEdit(pkg)}
-                                            >
-                                                <Pencil size={16} /> Edit
-                                            </button>
-                                            <button
-                                                className="w-full cursor-pointer text-left px-4 py-2 flex items-center gap-2 text-red-600 hover:bg-gray-100 text-sm"
-                                                onClick={() => handleDelete(pkg)}
-                                            >
-                                                <Trash size={16} /> Hapus
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="flex justify-center mb-4">
-                                    <img
-                                        src={pkg.image}
-                                        alt={pkg.name}
-                                        className="w-16 h-16 rounded-full border-2 border-white object-cover bg-gray-200 cursor-pointer"
-                                        onClick={() => handleDetail(pkg)}
-                                    />
-                                </div>
-
-                                <div className="text-center">
-                                    <h3 className="text-xl font-semibold text-gray-900 truncate">
-                                        {pkg.name}
-                                    </h3>
-                                    <p className="text-xs text-gray-500">#{pkg.kode_Bundling}</p>
-                                </div>
-
-                                <div className="mt-14 space-y-1 text-sm text-gray-700">
-                                    <div className="flex justify-between">
-                                        <span className="font-medium text-gray-600">Quantity Item:</span>
-                                        <span className="font-semibold text-gray-400">
-                                            {pkg.bundling_material_count} Item
-                                        </span>
-                                    </div>
-                                    <div className="flex justify-between mt-5">
-                                        <span className="font-medium text-gray-600">Harga:</span>
-                                        <span className="font-semibold text-gray-400">
-                                            {formatPrice(pkg.harga)}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
+            {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 pt-10">
+                    <button 
+                        disabled={currentPage === 1}
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        className="p-3 bg-white rounded-2xl shadow-sm text-gray-400 hover:text-emerald-600 disabled:opacity-30 disabled:hover:text-gray-400 transition-all cursor-pointer border-none"
+                    >
+                        <ChevronLeft size={20} />
+                    </button>
+                    <div className="flex gap-2">
+                        {Array.from({ length: totalPages }).map((_, i) => (
+                            <button 
+                                key={i} 
+                                onClick={() => handlePageChange(i + 1)}
+                                className={`w-12 h-12 rounded-2xl font-bold text-sm transition-all shadow-sm cursor-pointer border-none ${currentPage === i + 1 ? 'bg-emerald-500 text-white shadow-emerald-500/20' : 'bg-white text-gray-400 hover:text-emerald-600'}`}
+                            >
+                                {i + 1}
+                            </button>
                         ))}
                     </div>
-
-                    <div className="flex items-center justify-between mt-6">
-                        <p className="text-sm text-gray-600">
-                            Menampilkan {displayedPackages.length} dari {filteredPackages.length}{" "}
-                            Bundling
-                        </p>
-                        <div className="flex gap-2">
-                            <button
-                                className="px-3 py-1 border rounded text-sm hover:bg-gray-100 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                                disabled={currentPage === 1}
-                            >
-                                Previous
-                            </button>
-                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                                <button
-                                    key={page}
-                                    onClick={() => setCurrentPage(page)}
-                                    className={`px-3 py-1 border rounded text-sm ${currentPage === page
-                                            ? "bg-blue-600 text-white"
-                                            : "hover:bg-gray-100 text-gray-700"
-                                        }`}
-                                >
-                                    {page}
-                                </button>
-                            ))}
-                            <button
-                                className="px-3 py-1 border rounded text-sm hover:bg-gray-100 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                                disabled={currentPage === totalPages}
-                            >
-                                Next
-                            </button>
-                        </div>
-                    </div>
-                </>
+                    <button 
+                        disabled={currentPage === totalPages}
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        className="p-3 bg-white rounded-2xl shadow-sm text-gray-400 hover:text-emerald-600 disabled:opacity-30 disabled:hover:text-gray-400 transition-all cursor-pointer border-none"
+                    >
+                        <ChevronRight size={20} />
+                    </button>
+                </div>
             )}
+        </>
+      )}
 
-            <BundlingFilterModal
-                open={showFilter}
-                onClose={() => setShowFilter(false)}
-                filterValues={filterValues}
-                setFilterValues={setFilterValues}
-                onApply={handleApplyFilter}
-            />
-        </div>
-    );
+      <AddBundlingModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        onSuccess={fetchData} 
+        bundle={selectedBundle}
+      />
+    </div>
+  );
 }
