@@ -4,6 +4,7 @@ import { useCartStore } from '@/core/store/useCartStore'
 import { Link } from 'react-router-dom'
 import Swal from 'sweetalert2'
 import { useApiClient } from '@/core/helpers/ApiClient'
+import { getToken } from '@/core/helpers/TokenHandle'
 
 export default function CataloguePage() {
     const api = useApiClient()
@@ -147,7 +148,35 @@ export default function CataloguePage() {
         }
     }
 
+    const getStockAmount = (item: any) => {
+        if (activeTab === 'products') {
+            return item.stock ?? 0;
+        } else {
+            if (!item.materials || item.materials.length === 0) return 0;
+            let minStock = Infinity;
+            item.materials.forEach((m: any) => {
+                const productStock = m.product?.stock ?? 0;
+                const quantityRequired = m.quantity ?? 1;
+                const possibleBundles = Math.floor(productStock / quantityRequired);
+                if (possibleBundles < minStock) {
+                    minStock = possibleBundles;
+                }
+            });
+            return minStock === Infinity ? 0 : minStock;
+        }
+    }
+
     const handleAddToCart = (item: any) => {
+        if (!getToken()) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Akses Ditolak',
+                text: 'Silahkan login terlebih dahulu untuk menambah barang ke keranjang.',
+                confirmButtonColor: '#059669'
+            })
+            return
+        }
+
         if (checkIsOutOfStock(item)) return
 
         addToCart({
@@ -364,8 +393,15 @@ export default function CataloguePage() {
                                             </div>
                                         )}
                                         {!isOutOfStock && activeTab === 'products' && (
-                                            <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-xl text-[10px] font-bold text-stone-500 shadow-sm border border-stone-100">
-                                                {item.category?.name}
+                                            <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-xl text-[10px] font-bold text-stone-500 shadow-sm border border-stone-100 flex flex-col items-end gap-1">
+                                                <span>{item.category?.name}</span>
+                                                <span className="text-[9px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">Stok: {getStockAmount(item)}</span>
+                                            </div>
+                                        )}
+                                        {!isOutOfStock && activeTab === 'bundles' && (
+                                            <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-xl text-[10px] font-bold text-stone-500 shadow-sm border border-stone-100 flex flex-col items-end gap-1">
+                                                <span>Bundle</span>
+                                                <span className="text-[9px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">Stok: {getStockAmount(item)}</span>
                                             </div>
                                         )}
                                         <div className="absolute inset-0 bg-stone-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
@@ -492,6 +528,11 @@ export default function CataloguePage() {
                                 <div className="text-3xl font-black text-emerald-700 flex items-baseline gap-2">
                                     Rp {Number(selectedItem.price ?? 0).toLocaleString('id-ID')}
                                     <span className="text-sm font-bold text-stone-400 uppercase tracking-widest">/ Day</span>
+                                </div>
+                                <div className="mt-3 inline-block">
+                                    <span className="font-bold text-sm text-stone-600 bg-stone-100 px-4 py-2 rounded-xl border border-stone-200">
+                                        Stok Tersedia: <span className="text-emerald-600">{getStockAmount(selectedItem)}</span>
+                                    </span>
                                 </div>
                             </div>
 

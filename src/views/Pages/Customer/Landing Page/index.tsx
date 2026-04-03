@@ -51,6 +51,23 @@ export default function LandingPage() {
   }
 
   useEffect(() => {
+    const checkExistingSession = async () => {
+      if (getToken()) {
+        try {
+          const response = await api.get('/me');
+          const role = response.data.user.role;
+          if (role === 'admin' || role === 'superadmin' || role === 'super admin') {
+            window.location.href = '/dashboard';
+          }
+        } catch (err) {
+          // Ignored
+        }
+      }
+    };
+    checkExistingSession();
+  }, [api]);
+
+  useEffect(() => {
     const fetchData = async () => {
       try {
         const [bundlingRes, productRes] = await Promise.all([

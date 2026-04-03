@@ -11,7 +11,7 @@ export default function CartPage() {
     const { items, removeFromCart, updateQuantity } = useCartStore();
 
     const [dates, setDates] = useState({ start: '', end: '' });
-    const [selectedItems, setSelectedItems] = useState<number[]>([]);
+    const [selectedItems, setSelectedItems] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
     const [recommendedProducts, setRecommendedProducts] = useState<any[]>([]);
 
@@ -19,12 +19,14 @@ export default function CartPage() {
         api.get('/products').then(res => {
             setRecommendedProducts((res.data.products || []).slice(0, 4));
         });
-        setSelectedItems(items.map(i => i.id));
+        setSelectedItems(items.map(i => i.cartId!));
     }, []);
 
-    const toggleSelectItem = (id: number) => {
+    const today = new Date().toISOString().split('T')[0];
+
+    const toggleSelectItem = (cartId: string) => {
         setSelectedItems(prev =>
-            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+            prev.includes(cartId) ? prev.filter(i => i !== cartId) : [...prev, cartId]
         );
     };
 
@@ -32,7 +34,7 @@ export default function CartPage() {
         if (selectedItems.length === items.length) {
             setSelectedItems([]);
         } else {
-            setSelectedItems(items.map(i => i.id));
+            setSelectedItems(items.map(i => i.cartId!));
         }
     };
 
@@ -48,7 +50,7 @@ export default function CartPage() {
     const days = calculateDays();
     const subtotal = useMemo(() => {
         return items
-            .filter(item => selectedItems.includes(item.id))
+            .filter(item => selectedItems.includes(item.cartId!))
             .reduce((sum, item) => sum + item.price * item.quantity, 0);
     }, [items, selectedItems]);
 
@@ -75,7 +77,7 @@ export default function CartPage() {
                 price: grandTotal,
                 status: 'pending',
                 materials: items
-                    .filter(item => selectedItems.includes(item.id))
+                    .filter(item => selectedItems.includes(item.cartId!))
                     .map(item => ({
                         product_id: item.type === 'product' ? item.id : null,
                         bundling_id: item.type === 'bundle' ? item.id : null,
@@ -93,7 +95,7 @@ export default function CartPage() {
                 showConfirmButton: false
             });
 
-            selectedItems.forEach(id => removeFromCart(id));
+            selectedItems.forEach(cartId => removeFromCart(cartId));
             navigate('/catalogue');
         } catch (error) {
             console.error('Checkout error:', error);
@@ -138,14 +140,14 @@ export default function CartPage() {
                         <div className="bg-white rounded-3xl overflow-hidden shadow-sm">
                             {items.map((item, idx) => (
                                 <div
-                                    key={item.id}
-                                    className={`p-5 flex gap-4 transition-colors ${idx !== items.length - 1 ? 'border-b border-stone-50' : ''} ${selectedItems.includes(item.id) ? 'bg-white' : 'bg-stone-50/30'}`}
+                                    key={item.cartId}
+                                    className={`p-5 flex gap-4 transition-colors ${idx !== items.length - 1 ? 'border-b border-stone-50' : ''} ${selectedItems.includes(item.cartId!) ? 'bg-white' : 'bg-stone-50/30'}`}
                                 >
                                     <div className="flex items-center">
                                         <input
                                             type="checkbox"
-                                            checked={selectedItems.includes(item.id)}
-                                            onChange={() => toggleSelectItem(item.id)}
+                                            checked={selectedItems.includes(item.cartId!)}
+                                            onChange={() => toggleSelectItem(item.cartId!)}
                                             className="w-5 h-5 rounded accent-emerald-600 cursor-pointer"
                                         />
                                     </div>
@@ -156,7 +158,7 @@ export default function CartPage() {
                                         <div className="flex justify-between items-start mb-1">
                                             <h3 className="font-bold text-stone-800 truncate text-lg pr-4">{item.name}</h3>
                                             <button
-                                                onClick={() => removeFromCart(item.id)}
+                                                onClick={() => removeFromCart(item.cartId!)}
                                                 className="text-stone-300 hover:text-red-500 transition-colors p-1"
                                             >
                                                 <Trash2 className="w-5 h-5" />
@@ -171,14 +173,14 @@ export default function CartPage() {
                                             </div>
                                             <div className="flex items-center border border-stone-200 rounded-xl overflow-hidden bg-white shadow-sm">
                                                 <button
-                                                    onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                                    onClick={() => updateQuantity(item.cartId!, item.quantity - 1)}
                                                     className="w-9 h-9 flex items-center justify-center hover:bg-stone-50 transition-colors text-stone-500"
                                                 >
                                                     <Minus className="w-4 h-4" />
                                                 </button>
                                                 <div className="w-10 text-center font-bold text-stone-800 border-x border-stone-100">{item.quantity}</div>
                                                 <button
-                                                    onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                                    onClick={() => updateQuantity(item.cartId!, item.quantity + 1)}
                                                     className="w-9 h-9 flex items-center justify-center hover:bg-stone-50 transition-colors text-stone-500"
                                                 >
                                                     <Plus className="w-4 h-4" />
@@ -202,6 +204,7 @@ export default function CartPage() {
                                         type="date"
                                         className="w-full px-5 py-4 bg-stone-50 border border-stone-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-medium"
                                         value={dates.start}
+                                        min={today}
                                         onChange={(e) => setDates({ ...dates, start: e.target.value })}
                                     />
                                 </div>
@@ -214,6 +217,7 @@ export default function CartPage() {
                                         type="date"
                                         className="w-full px-5 py-4 bg-stone-50 border border-stone-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-medium"
                                         value={dates.end}
+                                        min={dates.start || today}
                                         onChange={(e) => setDates({ ...dates, end: e.target.value })}
                                     />
                                 </div>

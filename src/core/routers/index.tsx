@@ -9,6 +9,7 @@ import CartPage from "@/views/Pages/Customer/Cart";
 import CheckoutPage from "@/views/Pages/Customer/Checkout";
 import PaymentPage from "@/views/test/CheckoutPage";
 import OrdersPage from "@/views/Pages/Customer/Orders";
+import MockPaymentGateway from "@/views/Pages/Customer/PaymentGateway";
 
 export const router = createBrowserRouter([
   {
@@ -18,6 +19,10 @@ export const router = createBrowserRouter([
   {
     path: "/payment",
     element: <PaymentPage />,
+  },
+  {
+    path: "/payment-gateway/:token",
+    element: <MockPaymentGateway />,
   },
   {
     path: "/catalogue",

@@ -24,6 +24,7 @@ interface Category {
     id: number;
     name: string;
     productCount?: number;
+    products_count?: number;
     created_at: string;
     updated_at: string;
 }
@@ -104,7 +105,6 @@ const CategoryPage = () => {
         } finally {
             setLoading(false);
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
@@ -155,7 +155,6 @@ const CategoryPage = () => {
         setPage(1);
     };
 
-    // Client-side filtering & sorting
     const filteredCategories = categories.filter(cat => 
         cat.name.toLowerCase().includes(debouncedSearch.toLowerCase())
     ).sort((a, b) => {
@@ -295,7 +294,7 @@ const CategoryPage = () => {
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="inline-flex items-center bg-gray-100 text-gray-600 text-[11px] font-semibold px-2 py-0.5 rounded-full border border-gray-200">
-                                                {cat.productCount ?? "—"}
+                                                {cat.products_count ?? cat.productCount ?? "—"}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">

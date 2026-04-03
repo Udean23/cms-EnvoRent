@@ -17,16 +17,7 @@ export default function OrdersPage() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const script = document.createElement('script');
-        script.src = "https://app.sandbox.midtrans.com/snap/snap.js";
-        script.setAttribute('data-client-key', "SB-Mid-client-T-dsnzl6aSpPNB0L");
-        document.body.appendChild(script);
-
         fetchOrders();
-
-        return () => {
-            document.body.removeChild(script);
-        };
     }, []);
 
     const fetchOrders = async () => {
@@ -49,23 +40,7 @@ export default function OrdersPage() {
         try {
             const res = await api.post('/payments/checkout', { transaction_id: transactionId });
             const snapToken = res.data.snap_token;
-
-            window.snap.pay(snapToken, {
-                onSuccess: () => {
-                    Swal.fire('Success', 'Pembayaran berhasil!', 'success');
-                    fetchOrders();
-                },
-                onPending: () => {
-                    Swal.fire('Info', 'Menunggu pembayaran...', 'info');
-                    fetchOrders();
-                },
-                onError: () => {
-                    Swal.fire('Error', 'Pembayaran gagal!', 'error');
-                },
-                onClose: () => {
-                    console.log('Snap modal closed');
-                }
-            });
+            navigate(`/payment-gateway/${snapToken}`);
         } catch (error: any) {
             Swal.fire('Error', error.response?.data?.message || 'Gagal memproses pembayaran', 'error');
         }
@@ -99,16 +74,18 @@ export default function OrdersPage() {
                 return { label: 'Diproses', color: 'bg-amber-100 text-amber-700', icon: Clock };
             case 'accepted':
                 return { label: 'Siap Dibayar', color: 'bg-blue-100 text-blue-700', icon: CreditCard };
-            case 'done':
-                return { label: 'Sudah Dibayar', color: 'bg-emerald-100 text-emerald-700', icon: CheckCircle2 };
-            case 'returning':
-                return { label: 'Dalam Pengembalian', color: 'bg-stone-100 text-stone-700', icon: RefreshCw };
+            case 'in_use':
+                return { label: 'Sedang Disewa', color: 'bg-emerald-100 text-emerald-700', icon: CheckCircle2 };
+            case 'in_progress':
+                return { label: 'Menunggu Persetujuan', color: 'bg-stone-100 text-stone-700', icon: RefreshCw };
             case 'returned':
                 return { label: 'Selesai', color: 'bg-stone-200 text-stone-500', icon: Box };
             default:
                 return { label: status, color: 'bg-gray-100 text-gray-700', icon: AlertCircle };
         }
     };
+
+    console.log(transactions);
 
     if (loading) {
         return (
@@ -178,18 +155,31 @@ export default function OrdersPage() {
                                     <div className="p-6 bg-stone-50/30 font-sans">
                                         <div className="space-y-3">
                                             {t.materials?.map((m: any, idx: number) => (
-                                                <div key={idx} className="flex items-center gap-4 p-3 bg-white rounded-2xl border border-stone-100 shadow-sm">
-                                                    <div className="w-12 h-12 rounded-xl bg-stone-50 flex items-center justify-center overflow-hidden">
-                                                        {m.product ? <Package className="w-6 h-6 text-stone-300" /> : <Box className="w-6 h-6 text-emerald-300" />}
+                                                <div key={idx} className="flex flex-col gap-2 p-3 bg-white rounded-2xl border border-stone-100 shadow-sm">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-12 h-12 rounded-xl bg-stone-50 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                                            {m.product ? <Package className="w-6 h-6 text-stone-300" /> : <Box className="w-6 h-6 text-emerald-300" />}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-sm font-bold text-stone-800 truncate">{m.product?.name || m.bundling?.name}</p>
+                                                            <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest">Quantity: {m.quantity}</p>
+                                                        </div>
+                                                        <div className="text-right flex-shrink-0">
+                                                            <p className="text-[10px] text-stone-300 font-bold uppercase tracking-tight">Price</p>
+                                                            <p className="text-sm font-black text-stone-600">Rp {Number(m.product?.price || m.bundling?.price || 0).toLocaleString('id-ID')}</p>
+                                                        </div>
                                                     </div>
-                                                    <div className="flex-1">
-                                                        <p className="text-sm font-bold text-stone-800 truncate">{m.product?.name || m.bundling?.name}</p>
-                                                        <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest">Quantity: {m.quantity}</p>
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <p className="text-[10px] text-stone-300 font-bold uppercase tracking-tight">Price</p>
-                                                        <p className="text-sm font-black text-stone-600">Rp {Number(m.product?.price || m.bundling?.price || 0).toLocaleString('id-ID')}</p>
-                                                    </div>
+                                                    {m.bundling && m.bundling.materials && (
+                                                        <div className="ml-16 mt-1 flex flex-col gap-1 border-l-2 border-emerald-100 pl-3">
+                                                            <p className="text-[9px] font-bold text-stone-400 uppercase tracking-widest mb-1">Isi Bundle:</p>
+                                                            {m.bundling.materials.map((bm: any, bIdx: number) => (
+                                                                <div key={bIdx} className="flex justify-between items-center text-xs">
+                                                                    <span className="text-stone-600 font-medium truncate pr-2">- {bm.product?.name}</span>
+                                                                    <span className="text-stone-400 font-bold text-[10px]">x{bm.quantity * m.quantity}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             ))}
                                         </div>
@@ -209,7 +199,7 @@ export default function OrdersPage() {
                                                 Bayar Barang <ArrowRight size={18} />
                                             </button>
                                         )}
-                                        {t.status === 'done' && (
+                                        {t.status === 'in_use' && (
                                             <button 
                                                 onClick={() => handleReturn(t.id)}
                                                 className="px-8 py-3 rounded-xl border-2 border-emerald-600 text-emerald-600 font-black text-sm hover:bg-emerald-50 transition-all active:scale-95"
@@ -217,7 +207,7 @@ export default function OrdersPage() {
                                                 Ajukan Pengembalian
                                             </button>
                                         )}
-                                        {t.status === 'returning' && (
+                                        {t.status === 'in_progress' && (
                                             <div className="flex items-center gap-2 px-6 py-2 bg-stone-100 rounded-xl">
                                                 <RefreshCw size={16} className="text-stone-400 animate-spin" />
                                                 <span className="text-xs font-black text-stone-400 uppercase">Menunggu Persetujuan Return</span>

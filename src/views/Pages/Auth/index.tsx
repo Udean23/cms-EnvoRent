@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Lock, Mail } from 'lucide-react';
 import { useApiClient } from '@/core/helpers/ApiClient';
-import { setToken } from '@/core/helpers/TokenHandle';
+import { setToken, getToken } from '@/core/helpers/TokenHandle';
 import Swal from 'sweetalert2';
 
 const AuthForm: React.FC = () => {
@@ -13,6 +13,25 @@ const AuthForm: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const apiClient = useApiClient();
+
+  useEffect(() => {
+    const checkExistingSession = async () => {
+      if (getToken()) {
+        try {
+          const response = await apiClient.get('/me');
+          const role = response.data.user.role;
+          if (role === 'admin' || role === 'superadmin' || role === 'super admin') {
+            window.location.href = '/dashboard';
+          } else {
+            window.location.href = '/';
+          }
+        } catch (err) {
+          // Ignored
+        }
+      }
+    };
+    checkExistingSession();
+  }, [apiClient]);
 
   const handleSignUpClick = () => {
     setIsSignUpMode(true);
