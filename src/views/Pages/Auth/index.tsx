@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { User, Lock, Mail } from 'lucide-react';
 import { useApiClient } from '@/core/helpers/ApiClient';
 import { setToken, getToken } from '@/core/helpers/TokenHandle';
+import { GoogleLogin } from '@react-oauth/google';
 import Swal from 'sweetalert2';
 
 const AuthForm: React.FC = () => {
@@ -146,6 +147,39 @@ const AuthForm: React.FC = () => {
     }
   };
 
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    setLoading(true);
+    try {
+      const res = await apiClient.post('/auth/google/callback', {
+        token: credentialResponse.credential
+      });
+      
+      if (res.data.access_token) {
+        setToken(res.data.access_token);
+        Swal.fire({
+          icon: 'success',
+          title: 'Login Successful',
+          text: 'You have logged in with Google!',
+          timer: 1500,
+          showConfirmButton: false,
+        });
+
+        setTimeout(() => {
+          const role = res.data.user.role;
+          if (role === 'admin' || role === 'superadmin') {
+            window.location.href = '/dashboard';
+          } else {
+            window.location.href = '/';
+          }
+        }, 1000);
+      }
+    } catch (err) {
+      Swal.fire('Error', 'Google login failed', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="relative w-full bg-white min-h-screen overflow-hidden">
       <div
@@ -208,6 +242,15 @@ const AuthForm: React.FC = () => {
             >
               {loading ? 'Loading...' : 'Login'}
             </button>
+            <div className="mt-4">
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={() => Swal.fire('Error', 'Google Login failed', 'error')}
+                useOneTap
+                theme="filled_blue"
+                shape="circle"
+              />
+            </div>
           </div>
 
           {/* Sign Up Form */}
@@ -270,6 +313,14 @@ const AuthForm: React.FC = () => {
             >
               {loading ? 'Loading...' : 'Sign up'}
             </button>
+            <div className="mt-4">
+                <GoogleLogin
+                    onSuccess={handleGoogleSuccess}
+                    onError={() => Swal.fire('Error', 'Google Login failed', 'error')}
+                    theme="filled_blue"
+                    shape="circle"
+                />
+            </div>
           </div>
         </div>
       </div>
