@@ -46,13 +46,14 @@ export const MainLayout = () => {
       const path = location.pathname;
 
       if (currentRole === 'admin') {
-        const allowedPaths = ['/dashboard', '/pemesanan', '/transaction-history'];
+        const allowedPaths = ['/dashboard', '/pemesanan', '/transaction-history', '/denda'];
         if (!allowedPaths.some(p => path.startsWith(p))) {
           navigate('/dashboard', { replace: true });
           return;
         }
       } else if (currentRole === 'superadmin' || currentRole === 'super admin') {
-        if (path.startsWith('/pemesanan') || path.startsWith('/transaction-history')) {
+        const restrictedPaths = ['/pemesanan', '/transaction-history', '/denda'];
+        if (restrictedPaths.some(p => path.startsWith(p))) {
           navigate('/dashboard', { replace: true });
           return;
         }
@@ -99,12 +100,16 @@ export const MainLayout = () => {
 
   return (
     <div className="flex">
-      <Sidebar sidebar={sidebar} role={userRole} />
-      <div className="flex-1 min-h-screen bg-gray-50 transition-all duration-300">
-        <Header onToggleSidebar={toggleSidebar} />
+      <div className="print:hidden">
+        <Sidebar sidebar={sidebar} role={userRole} />
+      </div>
+      <div className="flex-1 min-h-screen bg-gray-50 transition-all duration-300 print:bg-white print:m-0 print:p-0">
+        <div className="print:hidden">
+          <Header onToggleSidebar={toggleSidebar} />
+        </div>
         <main
-          className={`pt-16 p-6 transition-all duration-300 ${
-            sidebar === "full" ? "pl-64" : "pl-16"
+          className={`pt-16 p-6 transition-all duration-300 print:pt-0 print:p-0 ${
+            sidebar === "full" ? "pl-64 print:pl-0" : "pl-16 print:pl-0"
           }`}
         >
           <Outlet />

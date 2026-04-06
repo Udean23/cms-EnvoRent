@@ -12,3 +12,4 @@ export { default as LandingPage } from './Customer/Landing Page';
 export { default as Pemesanan } from './Admin/Pemesanan';
 export { default as User } from './Admin/User';
 export { default as ActivityLogs } from './Admin/Log Activity';
+export { default as Denda } from './Admin/Denda';

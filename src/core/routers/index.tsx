@@ -2,7 +2,7 @@ import { createBrowserRouter } from "react-router-dom";
 import NotFoundPage from "@/views/Pages/NotFoundPage/index";
 import AuthPage from "@/views/Pages/Auth/index";
 import { MainLayout } from "@/views/Layouts/MainLayout";
-import { Cashier, Dashboard, Category, Product, Bundling, BundlingDetail, ProductDetail, ProductCreate, ProductEdit, TransactionHistory, ActivityLogs, User, Pemesanan } from "@/views/Pages/pages";
+import { Cashier, Dashboard, Category, Product, Bundling, BundlingDetail, ProductDetail, ProductCreate, ProductEdit, TransactionHistory, ActivityLogs, User, Pemesanan, Denda } from "@/views/Pages/pages";
 import LandingPage from "@/views/Pages/Customer/Landing Page";
 import CataloguePage from "@/views/Pages/Customer/Catalogue";
 import CartPage from "@/views/Pages/Customer/Cart";
@@ -99,6 +99,10 @@ export const router = createBrowserRouter([
       {
         path: "pemesanan",
         element: <Pemesanan />
+      },
+      {
+        path: "denda",
+        element: <Denda />
       }
     ],
   },

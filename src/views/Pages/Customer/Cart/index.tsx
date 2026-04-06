@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useCartStore } from '@/core/store/useCartStore';
-import { Trash2, Plus, Minus, ArrowRight, Calendar, ArrowLeft, ShoppingBag, Ticket, ChevronRight, Info } from 'lucide-react';
+import { Trash2, Plus, Minus, ArrowRight, Calendar, ArrowLeft, ShoppingBag, ChevronRight, Info } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApiClient } from '@/core/helpers/ApiClient';
 import Swal from 'sweetalert2';
@@ -76,6 +76,8 @@ export default function CartPage() {
                 user_id: userId,
                 price: grandTotal,
                 status: 'pending',
+                start_date: dates.start,
+                end_date: dates.end,
                 materials: items
                     .filter(item => selectedItems.includes(item.cartId!))
                     .map(item => ({

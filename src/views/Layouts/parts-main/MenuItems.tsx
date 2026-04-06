@@ -4,6 +4,7 @@ import {
     Package,
     Shirt,
     SquareUser,
+    AlertCircle,
 } from "lucide-react";
 import {
     FaBoxesPacking,
@@ -55,6 +56,12 @@ export const menuItems: MenuItem[] = [
                 label: "Riwayat Peminjaman",
                 icon: <History size={16} />,
                 path: "/transaction-history",
+                roles: ["admin"],
+            },
+            {
+                label: "Sistem Denda",
+                icon: <AlertCircle size={16} />,
+                path: "/denda",
                 roles: ["admin"],
             },
         ],

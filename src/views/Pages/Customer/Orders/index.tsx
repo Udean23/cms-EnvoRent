@@ -40,7 +40,30 @@ export default function OrdersPage() {
         try {
             const res = await api.post('/payments/checkout', { transaction_id: transactionId });
             const snapToken = res.data.snap_token;
-            navigate(`/payment-gateway/${snapToken}`);
+            
+            if (window.snap) {
+                window.snap.pay(snapToken, {
+                    onSuccess: (result: any) => {
+                        console.log('Payment success:', result);
+                        Swal.fire('Berhasil!', 'Pembayaran berhasil dilakukan.', 'success');
+                        fetchOrders();
+                    },
+                    onPending: (result: any) => {
+                        console.log('Payment pending:', result);
+                        Swal.fire('Pending', 'Segera selesaikan pembayaran Anda.', 'info');
+                        fetchOrders();
+                    },
+                    onError: (result: any) => {
+                        console.error('Payment error:', result);
+                        Swal.fire('Error', 'Pembayaran gagal.', 'error');
+                    },
+                    onClose: () => {
+                        console.log('Payment popup closed');
+                    }
+                });
+            } else {
+                Swal.fire('Error', 'Sistem pembayaran belum siap.', 'error');
+            }
         } catch (error: any) {
             Swal.fire('Error', error.response?.data?.message || 'Gagal memproses pembayaran', 'error');
         }
