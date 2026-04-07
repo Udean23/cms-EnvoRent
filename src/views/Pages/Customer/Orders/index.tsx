@@ -1,20 +1,22 @@
 import { useEffect, useState } from 'react';
 import { useApiClient } from '@/core/helpers/ApiClient';
-import { ShoppingBag, Clock, CheckCircle2, AlertCircle, ArrowRight, ArrowLeft, RefreshCw, CreditCard, Box, Package } from 'lucide-react';
+import { ShoppingBag, Clock, CheckCircle2, AlertCircle, ArrowRight, ArrowLeft, RefreshCw, CreditCard, Box, Package, Printer } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import Swal from 'sweetalert2';
-
-declare global {
-    interface Window {
-        snap: any;
-    }
-}
+import InvoiceModal from '@/views/Components/InvoiceModal';
+import OfflinePaymentModal from '@/views/Components/OfflinePaymentModal';
 
 export default function OrdersPage() {
     const api = useApiClient();
     const navigate = useNavigate();
     const [transactions, setTransactions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+
+    const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+    const [invoiceType, setInvoiceType] = useState<'booking' | 'fine'>('booking');
+
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [paymentTarget, setPaymentTarget] = useState<{ id: number; amount: number; paymentFor: 'booking' | 'fine' } | null>(null);
 
     useEffect(() => {
         fetchOrders();
@@ -36,36 +38,34 @@ export default function OrdersPage() {
         }
     };
 
-    const handlePayment = async (transactionId: number) => {
-        try {
-            const res = await api.post('/payments/checkout', { transaction_id: transactionId });
-            const snapToken = res.data.snap_token;
-            
-            if (window.snap) {
-                window.snap.pay(snapToken, {
-                    onSuccess: (result: any) => {
-                        console.log('Payment success:', result);
-                        Swal.fire('Berhasil!', 'Pembayaran berhasil dilakukan.', 'success');
-                        fetchOrders();
-                    },
-                    onPending: (result: any) => {
-                        console.log('Payment pending:', result);
-                        Swal.fire('Pending', 'Segera selesaikan pembayaran Anda.', 'info');
-                        fetchOrders();
-                    },
-                    onError: (result: any) => {
-                        console.error('Payment error:', result);
-                        Swal.fire('Error', 'Pembayaran gagal.', 'error');
-                    },
-                    onClose: () => {
-                        console.log('Payment popup closed');
-                    }
-                });
-            } else {
-                Swal.fire('Error', 'Sistem pembayaran belum siap.', 'error');
+    const handlePayment = (transactionId: number, amount: number) => {
+        setPaymentTarget({ id: transactionId, amount, paymentFor: 'booking' });
+        setShowPaymentModal(true);
+    };
+
+    const handlePayFine = (transactionId: number, fineAmount: number) => {
+        setPaymentTarget({ id: transactionId, amount: fineAmount, paymentFor: 'fine' });
+        setShowPaymentModal(true);
+    };
+
+    const handlePaymentSuccess = async () => {
+        const userRes = await api.get('/me');
+        const userId = userRes.data.user.id;
+        const trRes = await api.get('/transactions');
+        const userOrders = (trRes.data.transactions || [])
+            .filter((t: any) => t.user_id === userId)
+            .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        setTransactions(userOrders);
+
+        if (paymentTarget) {
+            const updatedTx = userOrders.find((t: any) => t.id === paymentTarget.id);
+            if (updatedTx) {
+                if (paymentTarget.paymentFor === 'fine') {
+                    openInvoice({ ...updatedTx, fine_amount: paymentTarget.amount }, 'fine');
+                } else {
+                    openInvoice(updatedTx, paymentTarget.paymentFor);
+                }
             }
-        } catch (error: any) {
-            Swal.fire('Error', error.response?.data?.message || 'Gagal memproses pembayaran', 'error');
         }
     };
 
@@ -91,6 +91,11 @@ export default function OrdersPage() {
         }
     };
 
+    const openInvoice = (transaction: any, type: 'booking' | 'fine') => {
+        setSelectedInvoice(transaction);
+        setInvoiceType(type);
+    };
+
     const getStatusConfig = (status: string) => {
         switch (status) {
             case 'pending':
@@ -103,12 +108,14 @@ export default function OrdersPage() {
                 return { label: 'Menunggu Persetujuan', color: 'bg-stone-100 text-stone-700', icon: RefreshCw };
             case 'returned':
                 return { label: 'Selesai', color: 'bg-stone-200 text-stone-500', icon: Box };
+            case 'done':
+                return { label: 'Tuntas', color: 'bg-stone-200 text-stone-500', icon: Box };
+            case 'declined':
+                return { label: 'Ditolak', color: 'bg-rose-100 text-rose-700', icon: AlertCircle };
             default:
                 return { label: status, color: 'bg-gray-100 text-gray-700', icon: AlertCircle };
         }
     };
-
-    console.log(transactions);
 
     if (loading) {
         return (
@@ -150,6 +157,15 @@ export default function OrdersPage() {
                     <div className="space-y-6">
                         {transactions.map((t) => {
                             const { label, color, icon: Icon } = getStatusConfig(t.status);
+
+                            const finePayment = t.payments?.find((p: any) => p.payment_for === 'fine' && p.transaction_status === 'settlement');
+                            const paidFineAmount = finePayment ? finePayment.gross_amount : 0;
+                            const isOverdue = new Date(t.end_date) < new Date() && t.status === 'in_use';
+                            const daysLate = t.fine_amount > 0 ? t.fine_amount / 50000 : paidFineAmount > 0 ? paidFineAmount / 50000 : Math.ceil((new Date().getTime() - new Date(t.end_date).getTime()) / (1000 * 60 * 60 * 24));
+                            const fineAmount = t.fine_amount || paidFineAmount || (isOverdue ? daysLate * 50000 : 0);
+                            const hasFine = fineAmount > 0;
+                            const isLateOrFined = t.fine_amount > 0 && t.status !== 'done';
+
                             return (
                                 <div key={t.id} className="bg-white rounded-[2rem] shadow-sm border border-stone-100 overflow-hidden hover:shadow-md transition-shadow">
                                     <div className="p-6 border-b border-stone-50 flex flex-wrap justify-between items-center gap-4">
@@ -163,6 +179,11 @@ export default function OrdersPage() {
                                                     <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${color}`}>
                                                         {label}
                                                     </span>
+                                                    {isLateOrFined && (
+                                                        <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter bg-rose-100 text-rose-700">
+                                                            Terlambat
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <p className="text-xs text-stone-400 font-medium mt-1">
                                                     {new Date(t.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
@@ -172,6 +193,12 @@ export default function OrdersPage() {
                                         <div className="text-right">
                                             <span className="text-[10px] font-black uppercase tracking-widest text-stone-300 block mb-1">Total Pembayaran</span>
                                             <span className="text-xl font-black text-emerald-800">Rp {Number(t.price).toLocaleString('id-ID')}</span>
+                                            {hasFine && (
+                                                <div className="mt-1">
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-stone-300 block mb-0.5">Denda Telat</span>
+                                                    <span className="text-sm font-black text-rose-600">Rp {Number(fineAmount).toLocaleString('id-ID')}</span>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 
@@ -192,52 +219,69 @@ export default function OrdersPage() {
                                                             <p className="text-sm font-black text-stone-600">Rp {Number(m.product?.price || m.bundling?.price || 0).toLocaleString('id-ID')}</p>
                                                         </div>
                                                     </div>
-                                                    {m.bundling && m.bundling.materials && (
-                                                        <div className="ml-16 mt-1 flex flex-col gap-1 border-l-2 border-emerald-100 pl-3">
-                                                            <p className="text-[9px] font-bold text-stone-400 uppercase tracking-widest mb-1">Isi Bundle:</p>
-                                                            {m.bundling.materials.map((bm: any, bIdx: number) => (
-                                                                <div key={bIdx} className="flex justify-between items-center text-xs">
-                                                                    <span className="text-stone-600 font-medium truncate pr-2">- {bm.product?.name}</span>
-                                                                    <span className="text-stone-400 font-bold text-[10px]">x{bm.quantity * m.quantity}</span>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
                                                 </div>
                                             ))}
                                         </div>
                                     </div>
 
-                                    <div className="p-6 flex justify-end items-center gap-4">
+                                    <div className="p-6 flex flex-wrap justify-end items-center gap-4">
+                                        {!['pending', 'accepted', 'declined'].includes(t.status) && (
+                                            <button
+                                                onClick={() => openInvoice(t, 'booking')}
+                                                className="px-6 py-2.5 rounded-xl bg-stone-100 text-stone-600 font-bold text-xs hover:bg-stone-200 transition-colors flex items-center gap-2"
+                                            >
+                                                <Printer size={16} /> Nota Sewa
+                                            </button>
+                                        )}
+                                        {/* Tampilkan tombol nota denda jika transaksi sdh lunas dendanya */}
+                                        {paidFineAmount > 0 && (
+                                            <button
+                                                onClick={() => openInvoice({ ...t, fine_amount: fineAmount }, 'fine')}
+                                                className="px-6 py-2.5 rounded-xl bg-stone-100 text-stone-600 font-bold text-xs hover:bg-stone-200 transition-colors flex items-center gap-2"
+                                            >
+                                                <Printer size={16} /> Nota Denda
+                                            </button>
+                                        )}
+
                                         {t.status === 'pending' && (
                                             <button disabled className="px-8 py-3 rounded-xl bg-stone-100 text-stone-400 font-black text-sm cursor-not-allowed">
                                                 Diproses
                                             </button>
                                         )}
                                         {t.status === 'accepted' && (
-                                            <button 
-                                                onClick={() => handlePayment(t.id)}
+                                            <button
+                                                onClick={() => handlePayment(t.id, Number(t.price))}
                                                 className="px-8 py-3 rounded-xl bg-emerald-600 text-white font-black text-sm hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-lg shadow-emerald-600/20 active:scale-95"
                                             >
                                                 Bayar Barang <ArrowRight size={18} />
                                             </button>
                                         )}
-                                        {t.status === 'in_use' && (
-                                            <button 
+                                        {t.status === 'in_use' && !hasFine && (
+                                            <button
                                                 onClick={() => handleReturn(t.id)}
                                                 className="px-8 py-3 rounded-xl border-2 border-emerald-600 text-emerald-600 font-black text-sm hover:bg-emerald-50 transition-all active:scale-95"
                                             >
                                                 Ajukan Pengembalian
                                             </button>
                                         )}
-                                        {t.status === 'in_progress' && (
+                                        {t.status === 'in_progress' && !hasFine && (
                                             <div className="flex items-center gap-2 px-6 py-2 bg-stone-100 rounded-xl">
                                                 <RefreshCw size={16} className="text-stone-400 animate-spin" />
                                                 <span className="text-xs font-black text-stone-400 uppercase">Menunggu Persetujuan Return</span>
                                             </div>
                                         )}
-                                        {t.status === 'returned' && (
-                                            <span className="text-[10px] font-black text-stone-300 uppercase tracking-[0.2em]">Penyewaan Telah Selesai</span>
+
+                                        {isLateOrFined && (
+                                            <button
+                                                onClick={() => handlePayFine(t.id, fineAmount)}
+                                                className="px-8 py-3 rounded-xl bg-rose-600 text-white font-black text-sm hover:bg-rose-700 transition-all flex items-center gap-2 shadow-lg shadow-rose-600/20 active:scale-95"
+                                            >
+                                                Bayar Denda ({daysLate} Hari)
+                                            </button>
+                                        )}
+
+                                        {(t.status === 'returned' || t.status === 'done') && !isLateOrFined && (
+                                            <span className="text-[10px] font-black text-stone-300 uppercase tracking-[0.2em] px-4">TRANSAKSI TUNTAS</span>
                                         )}
                                     </div>
                                 </div>
@@ -246,6 +290,25 @@ export default function OrdersPage() {
                     </div>
                 )}
             </main>
+
+            {paymentTarget && (
+                <OfflinePaymentModal
+                    isOpen={showPaymentModal}
+                    onClose={() => setShowPaymentModal(false)}
+                    transactionId={paymentTarget.id}
+                    amount={paymentTarget.amount}
+                    paymentFor={paymentTarget.paymentFor}
+                    onSuccess={handlePaymentSuccess}
+                    isOnline={true}
+                />
+            )}
+
+            <InvoiceModal
+                isOpen={selectedInvoice !== null}
+                onClose={() => setSelectedInvoice(null)}
+                transaction={selectedInvoice}
+                type={invoiceType}
+            />
         </div>
     );
 }

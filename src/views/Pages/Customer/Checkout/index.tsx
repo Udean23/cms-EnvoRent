@@ -1,32 +1,81 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCartStore } from '@/core/store/useCartStore';
 import { ArrowLeft, CheckCircle, CreditCard, Wallet } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
+import { useApiClient } from '@/core/helpers/ApiClient';
+import OfflinePaymentModal from '@/views/Components/OfflinePaymentModal';
 
 export default function CheckoutPage() {
-    const { total, clearCart } = useCartStore();
+    const { total, items, clearCart } = useCartStore();
     const navigate = useNavigate();
+    const api = useApiClient();
     const [loading, setLoading] = useState(false);
+    const [paymentMethod, setPaymentMethod] = useState('credit_card');
+    const [userId, setUserId] = useState<number | null>(null);
 
-    const handleCheckout = (e: React.FormEvent) => {
+    const [showModal, setShowModal] = useState(false);
+    const [pendingTransactionId, setPendingTransactionId] = useState<number | null>(null);
+    const [isOnlineMode, setIsOnlineMode] = useState(false);
+
+    useEffect(() => {
+        const fetchUser = async () => {
+            try {
+                const res = await api.get('/me');
+                setUserId(res.data.user.id);
+            } catch (err) {
+                console.error(err);
+            }
+        };
+        fetchUser();
+    }, []);
+
+    const handleCheckout = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
 
-        // Simulate API call
-        setTimeout(() => {
+        try {
+            const transactionPayload = {
+                user_id: userId || 1,
+                price: total(),
+                start_date: new Date().toISOString().split('T')[0],
+                end_date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                materials: items.map(item => ({
+                    [item.type === 'product' ? 'product_id' : 'bundling_id']: item.id,
+                    quantity: item.quantity
+                }))
+            };
+
+            const res = await api.post('/transactions', transactionPayload);
+            const transactionRecord = res.data.transaction;
+
+            setPendingTransactionId(transactionRecord.id);
+
+            if (paymentMethod === 'credit_card') {
+                setIsOnlineMode(true);
+                setShowModal(true);
+            } else if (paymentMethod === 'offline_debit') {
+                setIsOnlineMode(false);
+                setShowModal(true);
+            }
+
+        } catch (error: any) {
+            Swal.fire('Error', error.response?.data?.message || 'Failed to checkout', 'error');
+        } finally {
             setLoading(false);
-            clearCart();
-            Swal.fire({
-                icon: 'success',
-                title: 'Order Placed!',
-                text: 'Your rental request has been received. We will contact you shortly.',
-                confirmButtonText: 'Back to Home',
-                confirmButtonColor: '#059669'
-            }).then(() => {
-                navigate('/');
-            });
-        }, 2000);
+        }
+    };
+
+    const handlePaymentSuccess = () => {
+        clearCart();
+        Swal.fire({
+            icon: 'success',
+            title: 'Pembayaran Berhasil!',
+            text: 'Pesanan Anda telah berhasil diproses.',
+            confirmButtonColor: '#059669'
+        }).then(() => {
+            navigate('/orders');
+        });
     };
 
     return (
@@ -54,28 +103,30 @@ export default function CheckoutPage() {
                                     <label className="block text-sm font-medium text-stone-600 mb-1">Phone Number</label>
                                     <input required type="tel" className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-stone-600 mb-1">ID Card Number (KTP)</label>
-                                    <input required type="text" className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                                </div>
                             </div>
                         </div>
 
                         <div className="bg-white p-6 rounded-xl shadow-sm border border-stone-100">
                             <h3 className="font-bold text-lg mb-4">Payment Method</h3>
                             <div className="space-y-3">
-                                <label className="flex items-center gap-4 p-4 border border-emerald-200 bg-emerald-50 rounded-lg cursor-pointer transition-colors">
-                                    <input type="radio" name="payment" defaultChecked className="text-emerald-600 focus:ring-emerald-500" />
+                                <label className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition-colors ${paymentMethod === 'credit_card' ? 'border-emerald-200 bg-emerald-50' : 'border-stone-200 hover:bg-stone-50'}`}>
+                                    <input type="radio" name="payment" checked={paymentMethod === 'credit_card'} onChange={() => setPaymentMethod('credit_card')} className="text-emerald-600 focus:ring-emerald-500" />
                                     <div className="flex items-center gap-2">
                                         <CreditCard className="w-5 h-5 text-emerald-700" />
-                                        <span className="font-medium text-stone-900">Bank Transfer</span>
+                                        <div>
+                                            <span className="font-medium text-stone-900 block">Kartu Kredit / Visa</span>
+                                            <span className="text-xs text-stone-500">Bayar langsung dengan kartu</span>
+                                        </div>
                                     </div>
                                 </label>
-                                <label className="flex items-center gap-4 p-4 border border-stone-200 rounded-lg cursor-pointer hover:bg-stone-50 transition-colors">
-                                    <input type="radio" name="payment" className="text-emerald-600 focus:ring-emerald-500" />
+                                <label className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition-colors ${paymentMethod === 'offline_debit' ? 'border-emerald-200 bg-emerald-50' : 'border-stone-200 hover:bg-stone-50'}`}>
+                                    <input type="radio" name="payment" checked={paymentMethod === 'offline_debit'} onChange={() => setPaymentMethod('offline_debit')} className="text-emerald-600 focus:ring-emerald-500" />
                                     <div className="flex items-center gap-2">
                                         <Wallet className="w-5 h-5 text-emerald-700" />
-                                        <span className="font-medium text-stone-900">E-Wallet (GoPay/Ovo)</span>
+                                        <div>
+                                            <span className="font-medium text-stone-900 block">Bayar Di Tempat (Debit/Credit)</span>
+                                            <span className="text-xs text-stone-500">Khusus admin/petugas</span>
+                                        </div>
                                     </div>
                                 </label>
                             </div>
@@ -103,6 +154,19 @@ export default function CheckoutPage() {
                     </div>
                 </form>
             </div>
+
+            {pendingTransactionId && (
+                <OfflinePaymentModal
+                    isOpen={showModal}
+                    onClose={() => setShowModal(false)}
+                    transactionId={pendingTransactionId}
+                    amount={total()}
+                    paymentFor="booking"
+                    onSuccess={handlePaymentSuccess}
+                    isOnline={isOnlineMode}
+                />
+            )}
         </div>
     );
 }
+
