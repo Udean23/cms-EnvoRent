@@ -4,6 +4,8 @@ import { useApiClient } from '@/core/helpers/ApiClient';
 import { setToken, getToken } from '@/core/helpers/TokenHandle';
 import { GoogleLogin } from '@react-oauth/google';
 import Swal from 'sweetalert2';
+import { BiArrowBack } from 'react-icons/bi';
+import { useNavigate } from 'react-router-dom';
 
 const AuthForm: React.FC = () => {
   const [isSignUpMode, setIsSignUpMode] = useState(false);
@@ -12,6 +14,7 @@ const AuthForm: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const nav = useNavigate();
 
   const apiClient = useApiClient();
 
@@ -63,6 +66,7 @@ const AuthForm: React.FC = () => {
 
       if (response.data.access_token) {
         setToken(response.data.access_token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
         setSuccessMessage('Login successful!');
 
         setTimeout(() => {
@@ -156,6 +160,7 @@ const AuthForm: React.FC = () => {
       
       if (res.data.access_token) {
         setToken(res.data.access_token);
+        localStorage.setItem('user', JSON.stringify(res.data.user));
         Swal.fire({
           icon: 'success',
           title: 'Login Successful',
@@ -182,6 +187,9 @@ const AuthForm: React.FC = () => {
 
   return (
     <div className="relative w-full bg-white min-h-screen overflow-hidden">
+    <div className="relative z-100 top-10 left-10 cursor-pointer bg-gray-100 w-10 rounded-full p-3" onClick={() => nav('/')}>
+      <BiArrowBack/>
+    </div>
       <div
         className={`absolute h-[2000px] w-[2000px] -top-[10%] bg-gradient-to-br from-green-500 to-green-400 transition-all duration-[1.8s] ease-in-out rounded-full transform -translate-y-1/2 z-[1] pointer-events-none
           ${isSignUpMode ? 'translate-x-full right-[52%]' : 'right-[48%]'}

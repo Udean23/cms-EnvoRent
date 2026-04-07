@@ -4,19 +4,21 @@ import { ShoppingBag, Clock, CheckCircle2, AlertCircle, ArrowRight, ArrowLeft, R
 import { useNavigate, Link } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import InvoiceModal from '@/views/Components/InvoiceModal';
-import OfflinePaymentModal from '@/views/Components/OfflinePaymentModal';
+import XenditPaymentModal from '@/views/Components/XenditPaymentModal';
 
 export default function OrdersPage() {
     const api = useApiClient();
     const navigate = useNavigate();
     const [transactions, setTransactions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [user, setUser] = useState<any>(null);
 
     const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
     const [invoiceType, setInvoiceType] = useState<'booking' | 'fine'>('booking');
 
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [paymentTarget, setPaymentTarget] = useState<{ id: number; amount: number; paymentFor: 'booking' | 'fine' } | null>(null);
+    const [paymentMethod, setPaymentMethod] = useState<'invoice' | 'virtual_account'>('invoice');
 
     useEffect(() => {
         fetchOrders();
@@ -25,6 +27,7 @@ export default function OrdersPage() {
     const fetchOrders = async () => {
         try {
             const userRes = await api.get('/me');
+            setUser(userRes.data.user);
             const userId = userRes.data.user.id;
             const res = await api.get('/transactions');
             const userOrders = (res.data.transactions || [])
@@ -40,12 +43,65 @@ export default function OrdersPage() {
 
     const handlePayment = (transactionId: number, amount: number) => {
         setPaymentTarget({ id: transactionId, amount, paymentFor: 'booking' });
-        setShowPaymentModal(true);
+        selectPaymentMethod();
     };
 
     const handlePayFine = (transactionId: number, fineAmount: number) => {
         setPaymentTarget({ id: transactionId, amount: fineAmount, paymentFor: 'fine' });
-        setShowPaymentModal(true);
+        selectPaymentMethod();
+    };
+
+    const selectPaymentMethod = () => {
+        Swal.fire({
+            title: 'Pilih Metode Pembayaran',
+            html: `
+                <div class="space-y-3">
+                    <button id="invoice-btn" class="w-full p-4 bg-emerald-50 hover:bg-emerald-100 border-2 border-emerald-200 hover:border-emerald-300 rounded-xl text-left transition-all">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+                                <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="font-bold text-emerald-900">Invoice Xendit</div>
+                                <div class="text-sm text-emerald-700">Bayar melalui link pembayaran</div>
+                            </div>
+                        </div>
+                    </button>
+                    <button id="va-btn" class="w-full p-4 bg-blue-50 hover:bg-blue-100 border-2 border-blue-200 hover:border-blue-300 rounded-xl text-left transition-all">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="font-bold text-blue-900">Virtual Account</div>
+                                <div class="text-sm text-blue-700">Transfer ke rekening bank</div>
+                            </div>
+                        </div>
+                    </button>
+                </div>
+            `,
+            showConfirmButton: false,
+            showCancelButton: false,
+            customClass: {
+                popup: 'rounded-2xl'
+            },
+            didOpen: () => {
+                document.getElementById('invoice-btn')?.addEventListener('click', () => {
+                    setPaymentMethod('invoice');
+                    setShowPaymentModal(true);
+                    Swal.close();
+                });
+                document.getElementById('va-btn')?.addEventListener('click', () => {
+                    setPaymentMethod('virtual_account');
+                    setShowPaymentModal(true);
+                    Swal.close();
+                });
+            }
+        });
     };
 
     const handlePaymentSuccess = async () => {
@@ -233,7 +289,6 @@ export default function OrdersPage() {
                                                 <Printer size={16} /> Nota Sewa
                                             </button>
                                         )}
-                                        {/* Tampilkan tombol nota denda jika transaksi sdh lunas dendanya */}
                                         {paidFineAmount > 0 && (
                                             <button
                                                 onClick={() => openInvoice({ ...t, fine_amount: fineAmount }, 'fine')}
@@ -291,15 +346,17 @@ export default function OrdersPage() {
                 )}
             </main>
 
-            {paymentTarget && (
-                <OfflinePaymentModal
+            {paymentTarget && user && (
+                <XenditPaymentModal
                     isOpen={showPaymentModal}
                     onClose={() => setShowPaymentModal(false)}
                     transactionId={paymentTarget.id}
                     amount={paymentTarget.amount}
                     paymentFor={paymentTarget.paymentFor}
+                    customerEmail={user.email}
+                    customerName={user.name}
                     onSuccess={handlePaymentSuccess}
-                    isOnline={true}
+                    paymentMethod={paymentMethod}
                 />
             )}
 

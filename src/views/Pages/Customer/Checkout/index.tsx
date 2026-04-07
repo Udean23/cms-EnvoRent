@@ -1,28 +1,43 @@
 import React, { useState, useEffect } from 'react';
 import { useCartStore } from '@/core/store/useCartStore';
-import { ArrowLeft, CheckCircle, CreditCard, Wallet } from 'lucide-react';
+import { ArrowLeft, CheckCircle, CreditCard, Landmark } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { useApiClient } from '@/core/helpers/ApiClient';
-import OfflinePaymentModal from '@/views/Components/OfflinePaymentModal';
+import XenditPaymentModal from '@/views/Components/XenditPaymentModal';
 
 export default function CheckoutPage() {
     const { total, items, clearCart } = useCartStore();
     const navigate = useNavigate();
     const api = useApiClient();
     const [loading, setLoading] = useState(false);
-    const [paymentMethod, setPaymentMethod] = useState('credit_card');
+    const [paymentMethod, setPaymentMethod] = useState('xendit_invoice');
     const [userId, setUserId] = useState<number | null>(null);
 
     const [showModal, setShowModal] = useState(false);
     const [pendingTransactionId, setPendingTransactionId] = useState<number | null>(null);
-    const [isOnlineMode, setIsOnlineMode] = useState(false);
+    const [xenditPaymentType, setXenditPaymentType] = useState<'invoice' | 'virtual_account'>('invoice');
+
+    const [formData, setFormData] = useState({
+        fullName: '',
+        email: '',
+        phoneNumber: '',
+        cardNumber: '',
+        expiry: '',
+        bankName: 'BCA'
+    });
 
     useEffect(() => {
         const fetchUser = async () => {
             try {
                 const res = await api.get('/me');
                 setUserId(res.data.user.id);
+                setFormData(prev => ({
+                    ...prev,
+                    fullName: res.data.user.name || '',
+                    email: res.data.user.email || '',
+                    phoneNumber: res.data.user.phone || ''
+                }));
             } catch (err) {
                 console.error(err);
             }
@@ -51,11 +66,11 @@ export default function CheckoutPage() {
 
             setPendingTransactionId(transactionRecord.id);
 
-            if (paymentMethod === 'credit_card') {
-                setIsOnlineMode(true);
+            if (paymentMethod === 'xendit_invoice') {
+                setXenditPaymentType('invoice');
                 setShowModal(true);
-            } else if (paymentMethod === 'offline_debit') {
-                setIsOnlineMode(false);
+            } else if (paymentMethod === 'xendit_va') {
+                setXenditPaymentType('virtual_account');
                 setShowModal(true);
             }
 
@@ -93,15 +108,33 @@ export default function CheckoutPage() {
                             <div className="space-y-4">
                                 <div>
                                     <label className="block text-sm font-medium text-stone-600 mb-1">Full Name</label>
-                                    <input required type="text" className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                                    <input
+                                        required
+                                        type="text"
+                                        value={formData.fullName}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
+                                        className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                    />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-stone-600 mb-1">Email Address</label>
-                                    <input required type="email" className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                                    <input
+                                        required
+                                        type="email"
+                                        value={formData.email}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                                        className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                    />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-stone-600 mb-1">Phone Number</label>
-                                    <input required type="tel" className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                                    <input
+                                        required
+                                        type="tel"
+                                        value={formData.phoneNumber}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, phoneNumber: e.target.value }))}
+                                        className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -109,23 +142,24 @@ export default function CheckoutPage() {
                         <div className="bg-white p-6 rounded-xl shadow-sm border border-stone-100">
                             <h3 className="font-bold text-lg mb-4">Payment Method</h3>
                             <div className="space-y-3">
-                                <label className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition-colors ${paymentMethod === 'credit_card' ? 'border-emerald-200 bg-emerald-50' : 'border-stone-200 hover:bg-stone-50'}`}>
-                                    <input type="radio" name="payment" checked={paymentMethod === 'credit_card'} onChange={() => setPaymentMethod('credit_card')} className="text-emerald-600 focus:ring-emerald-500" />
+                                <label className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition-colors ${paymentMethod === 'xendit_invoice' ? 'border-emerald-200 bg-emerald-50' : 'border-stone-200 hover:bg-stone-50'}`}>
+                                    <input type="radio" name="payment" checked={paymentMethod === 'xendit_invoice'} onChange={() => setPaymentMethod('xendit_invoice')} className="text-emerald-600 focus:ring-emerald-500" />
                                     <div className="flex items-center gap-2">
                                         <CreditCard className="w-5 h-5 text-emerald-700" />
                                         <div>
-                                            <span className="font-medium text-stone-900 block">Kartu Kredit / Visa</span>
-                                            <span className="text-xs text-stone-500">Bayar langsung dengan kartu</span>
+                                            <span className="font-medium text-stone-900 block">Xendit Invoice</span>
+                                            <span className="text-xs text-stone-500">Kartu kredit, e-wallet, BNPL</span>
                                         </div>
                                     </div>
                                 </label>
-                                <label className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition-colors ${paymentMethod === 'offline_debit' ? 'border-emerald-200 bg-emerald-50' : 'border-stone-200 hover:bg-stone-50'}`}>
-                                    <input type="radio" name="payment" checked={paymentMethod === 'offline_debit'} onChange={() => setPaymentMethod('offline_debit')} className="text-emerald-600 focus:ring-emerald-500" />
+
+                                <label className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition-colors ${paymentMethod === 'xendit_va' ? 'border-emerald-200 bg-emerald-50' : 'border-stone-200 hover:bg-stone-50'}`}>
+                                    <input type="radio" name="payment" checked={paymentMethod === 'xendit_va'} onChange={() => setPaymentMethod('xendit_va')} className="text-emerald-600 focus:ring-emerald-500" />
                                     <div className="flex items-center gap-2">
-                                        <Wallet className="w-5 h-5 text-emerald-700" />
+                                        <Landmark className="w-5 h-5 text-emerald-700" />
                                         <div>
-                                            <span className="font-medium text-stone-900 block">Bayar Di Tempat (Debit/Credit)</span>
-                                            <span className="text-xs text-stone-500">Khusus admin/petugas</span>
+                                            <span className="font-medium text-stone-900 block">Transfer Bank Virtual Account</span>
+                                            <span className="text-xs text-stone-500">BCA, BNI, Mandiri, BRI</span>
                                         </div>
                                     </div>
                                 </label>
@@ -156,14 +190,16 @@ export default function CheckoutPage() {
             </div>
 
             {pendingTransactionId && (
-                <OfflinePaymentModal
+                <XenditPaymentModal
                     isOpen={showModal}
                     onClose={() => setShowModal(false)}
                     transactionId={pendingTransactionId}
                     amount={total()}
                     paymentFor="booking"
+                    customerEmail={formData.email}
+                    customerName={formData.fullName}
                     onSuccess={handlePaymentSuccess}
-                    isOnline={isOnlineMode}
+                    paymentMethod={xenditPaymentType}
                 />
             )}
         </div>

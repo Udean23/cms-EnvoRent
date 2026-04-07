@@ -10,11 +10,21 @@ import CheckoutPage from "@/views/Pages/Customer/Checkout";
 import PaymentPage from "@/views/test/CheckoutPage";
 import OrdersPage from "@/views/Pages/Customer/Orders";
 import MockPaymentGateway from "@/views/Pages/Customer/PaymentGateway";
+import ChatPage from "@/views/Pages/chat";
+import AIChatPage from "@/views/Pages/aiChat";
 
 export const router = createBrowserRouter([
   {
     path: "/",
     element: <LandingPage />,
+  },
+  {
+    path: "chatPage",
+    element: <ChatPage />
+  },
+  {
+    path: "aiChatPage",
+    element: <AIChatPage />
   },
   {
     path: "/payment",

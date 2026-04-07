@@ -47,7 +47,7 @@ const StatCard = ({ label, value, growth, icon: Icon, colorClass }: any) => (
         )}
       </div>
       <div className={`p-3 rounded-2xl ${colorClass} bg-opacity-10 text-current print:p-2`}>
-        <Icon size={24} className={colorClass.replace("bg-", "text-")} />
+        <Icon size={24} className="text-white" />
       </div>
     </div>
   </GlassCard>
@@ -56,21 +56,63 @@ const StatCard = ({ label, value, growth, icon: Icon, colorClass }: any) => (
 const Dashboard = () => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
   const apiClient = useApiClient();
 
+  const today = new Date().toISOString().split('T')[0];
+
+  const fetchData = async (start?: string, end?: string) => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (start) params.append('start_date', start);
+      if (end) params.append('end_date', end);
+      const url = `/dashboard${params.toString() ? '?' + params.toString() : ''}`;
+      const response = await apiClient.get(url);
+      setData(response.data);
+    } catch (error) {
+      console.error("Failed to fetch dashboard data", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await apiClient.get("/dashboard");
-        setData(response.data);
-      } catch (error) {
-        console.error("Failed to fetch dashboard data", error);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchData();
   }, []);
+
+  const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newStartDate = e.target.value;
+    setStartDate(newStartDate);
+    if (endDate && newStartDate) {
+      const start = new Date(newStartDate);
+      start.setDate(start.getDate() + 1);
+      const minEndDate = start.toISOString().split('T')[0];
+      if (endDate < minEndDate) {
+        setEndDate("");
+      }
+    } else {
+      setEndDate("");
+    }
+  };
+
+  const getMinEndDate = () => {
+    if (!startDate) return today;
+    const start = new Date(startDate);
+    start.setDate(start.getDate() + 1);
+    return start.toISOString().split('T')[0];
+  };
+
+  const handleFilter = () => {
+    fetchData(startDate, endDate);
+  };
+
+  const handleReset = () => {
+    setStartDate("");
+    setEndDate("");
+    fetchData();
+  };
 
   const handlePrint = () => {
     window.print();
@@ -133,72 +175,112 @@ const Dashboard = () => {
       {/* Screen only header */}
       <div className="print:hidden space-y-4">
         <Breadcrumb title="Ringkasan Pasar" desc="Analisis mendalam performa bisnis EnvoRent Anda" />
-        <button 
-          onClick={handlePrint}
-          className="flex items-center justify-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-2xl text-sm font-bold hover:bg-black transition-all shadow-lg hover:shadow-emerald-500/20 active:scale-95"
-        >
-          <Printer size={18} /> Cetak Laporan Penyewaan (PDF)
-        </button>
+        <div className="flex justify-between">
+          <button
+            onClick={handlePrint}
+            className="flex items-center justify-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-2xl text-sm font-bold hover:bg-black transition-all shadow-lg hover:shadow-emerald-500/20 active:scale-95"
+          >
+            <Printer size={18} /> Cetak Laporan Penyewaan (PDF)
+          </button>
+          <div className="flex items-center gap-4">
+            <div className="flex flex-col text-sm text-gray-500">
+              <p>Mulai Tanggal</p>
+              <input
+                type="date"
+                value={startDate}
+                onChange={handleStartDateChange}
+                className="border border-gray-300 rounded-lg px-4 py-2"
+              />
+            </div>
+            <div className="flex flex-col text-sm text-gray-500">
+              <p>Sampai Tanggal</p>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                min={getMinEndDate()}
+                disabled={!startDate}
+                className="border border-gray-300 rounded-lg px-4 py-2 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              />
+            </div>
+            <div className="flex flex-col justify-end">
+              <button
+                onClick={handleFilter}
+                className="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors"
+              >
+                Filter
+              </button>
+            </div>
+            <div className="flex flex-col justify-end">
+              <button
+                onClick={handleReset}
+                className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Print only detailed report */}
       <div className="hidden print:block font-['Outfit']">
-          <div className="text-center border-b-2 border-gray-900 pb-6 mb-10 mt-2">
-              <h1 className="text-5xl font-black uppercase tracking-tighter text-gray-900">Official Rental Report</h1>
-              <p className="text-gray-500 mt-2 font-semibold tracking-widest uppercase text-xs">Laporan Histori Penyewaan Selesai &bull; {new Date().toLocaleDateString('id-ID', { dateStyle: 'full' })}</p>
-          </div>
-            
-          <div className="mb-12">
-              <div className="flex items-center justify-between mb-8">
-                  <h3 className="text-2xl font-bold text-gray-900 border-l-8 border-emerald-500 pl-4">Daftar Transaksi Selesai</h3>
-                  <div className="text-right">
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Transaksi</p>
-                      <p className="text-xl font-black text-gray-900">{data?.all_completed_rentals?.length || 0}</p>
-                  </div>
-              </div>
-              <div className="overflow-hidden rounded-[2.5rem] border border-gray-100 shadow-sm">
-                  <table className="w-full text-left bg-white border-collapse">
-                      <thead>
-                          <tr className="bg-gray-50 text-gray-400 text-[10px] uppercase font-bold tracking-widest border-b border-gray-100">
-                              <th className="px-8 py-5">ID</th>
-                              <th className="px-8 py-5">Pelanggan</th>
-                              <th className="px-8 py-5">Barang Disewa</th>
-                              <th className="px-8 py-5 text-center">Tanggal</th>
-                              <th className="px-8 py-5 text-right">Total</th>
-                          </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-50">
-                          {data?.all_completed_rentals?.map((trx: any) => (
-                              <tr key={trx.id} className="text-xs group hover:bg-gray-50/30 transition-colors">
-                                  <td className="px-8 py-5 font-mono font-bold text-emerald-600">#{trx.id}</td>
-                                  <td className="px-8 py-5 font-bold text-gray-900">{trx.customer}</td>
-                                  <td className="px-8 py-5 text-gray-600 font-medium leading-relaxed max-w-xs">{trx.items}</td>
-                                  <td className="px-8 py-5 text-center font-medium text-gray-500">{trx.date}</td>
-                                  <td className="px-8 py-5 text-right font-black text-gray-900">{formatRupiah(trx.total)}</td>
-                              </tr>
-                          ))}
-                      </tbody>
-                      <tfoot>
-                          <tr className="bg-gray-900 text-white border-t-4 border-emerald-500">
-                              <td colSpan={4} className="px-8 py-6 text-right text-xs font-bold uppercase tracking-widest">Total Pendapatan Bersih:</td>
-                              <td className="px-8 py-6 text-right text-xl font-black font-mono">
-                                  {formatRupiah(data?.all_completed_rentals?.reduce((sum: number, t: any) => sum + t.total, 0) || 0)}
-                              </td>
-                          </tr>
-                      </tfoot>
-                  </table>
-              </div>
-          </div>
+        <div className="text-center border-b-2 border-gray-900 pb-6 mb-10 mt-2">
+          <h1 className="text-5xl font-black uppercase tracking-tighter text-gray-900">Official Rental Report</h1>
+          <p className="text-gray-500 mt-2 font-semibold tracking-widest uppercase text-xs">Laporan Histori Penyewaan Selesai &bull; {new Date().toLocaleDateString('id-ID', { dateStyle: 'full' })}</p>
+        </div>
 
-          <div className="flex justify-between items-end mt-16 px-4">
-              <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest space-y-1">
-                  <p>EnvoRent Security Paper</p>
-                  <p>Audit ID: {Math.random().toString(36).substring(2, 12).toUpperCase()}</p>
-              </div>
-              <div className="text-center w-48 border-t-2 border-gray-900 pt-2">
-                  <p className="text-[10px] font-bold text-gray-900 uppercase">Administrator</p>
-              </div>
+        <div className="mb-12">
+          <div className="flex items-center justify-between mb-8">
+            <h3 className="text-2xl font-bold text-gray-900 border-l-8 border-emerald-500 pl-4">Daftar Transaksi Selesai</h3>
+            <div className="text-right">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Transaksi</p>
+              <p className="text-xl font-black text-gray-900">{data?.all_completed_rentals?.length || 0}</p>
+            </div>
           </div>
+          <div className="overflow-hidden rounded-[2.5rem] border border-gray-100 shadow-sm">
+            <table className="w-full text-left bg-white border-collapse">
+              <thead>
+                <tr className="bg-gray-50 text-gray-400 text-[10px] uppercase font-bold tracking-widest border-b border-gray-100">
+                  <th className="px-8 py-5">ID</th>
+                  <th className="px-8 py-5">Pelanggan</th>
+                  <th className="px-8 py-5">Barang Disewa</th>
+                  <th className="px-8 py-5 text-center">Tanggal</th>
+                  <th className="px-8 py-5 text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {data?.all_completed_rentals?.map((trx: any) => (
+                  <tr key={trx.id} className="text-xs group hover:bg-gray-50/30 transition-colors">
+                    <td className="px-8 py-5 font-mono font-bold text-emerald-600">#{trx.id}</td>
+                    <td className="px-8 py-5 font-bold text-gray-900">{trx.customer}</td>
+                    <td className="px-8 py-5 text-gray-600 font-medium leading-relaxed max-w-xs">{trx.items}</td>
+                    <td className="px-8 py-5 text-center font-medium text-gray-500">{trx.date}</td>
+                    <td className="px-8 py-5 text-right font-black text-gray-900">{formatRupiah(trx.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="bg-gray-900 text-white border-t-4 border-emerald-500">
+                  <td colSpan={4} className="px-8 py-6 text-right text-xs font-bold uppercase tracking-widest">Total Pendapatan Bersih:</td>
+                  <td className="px-8 py-6 text-right text-xl font-black font-mono">
+                    {formatRupiah(data?.all_completed_rentals?.reduce((sum: number, t: any) => sum + t.total, 0) || 0)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        <div className="flex justify-between items-end mt-16 px-4">
+          <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest space-y-1">
+            <p>EnvoRent Security Paper</p>
+            <p>Audit ID: {Math.random().toString(36).substring(2, 12).toUpperCase()}</p>
+          </div>
+          <div className="text-center w-48 border-t-2 border-gray-900 pt-2">
+            <p className="text-[10px] font-bold text-gray-900 uppercase">Administrator</p>
+          </div>
+        </div>
       </div>
 
       {/* Screen only dashboard content */}
@@ -280,11 +362,11 @@ const Dashboard = () => {
           </GlassCard>
 
           <GlassCard className="lg:col-span-5">
-             <h3 className="text-xl font-bold text-gray-900 mb-1">Performa Kategori</h3>
-             <p className="text-sm text-gray-500 mb-8">Distribusi item terjual per kategori (Status: Selesai)</p>
-             <div className="h-[300px]">
-               <ApexCharts options={donutOptions} series={data?.category_sales?.series || []} type="donut" height={320} />
-             </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-1">Performa Kategori</h3>
+            <p className="text-sm text-gray-500 mb-8">Distribusi item terjual per kategori (Status: Selesai)</p>
+            <div className="h-[300px]">
+              <ApexCharts options={donutOptions} series={data?.category_sales?.series || []} type="donut" height={320} />
+            </div>
           </GlassCard>
         </div>
 
@@ -307,7 +389,7 @@ const Dashboard = () => {
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-gray-400 capitalize">Penjualan: {item.sold} Unit</span>
                     <div className="flex gap-0.5">
-                      {[1,2,3,4,5].map(s => <span key={s} className="text-amber-400 text-[10px]">★</span>)}
+                      {[1, 2, 3, 4, 5].map(s => <span key={s} className="text-amber-400 text-[10px]">★</span>)}
                     </div>
                   </div>
                 </div>
